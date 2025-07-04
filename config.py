@@ -3,12 +3,12 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 # Hyperparameters
-LORA_RANK = 4
+LORA_RANK = 8
 LORA_ALPHA = 16
 MERGE_WEIGHTS = True # Merge LoRA matrices during evaluation step to save memory & inference time
 LEARNING_RATE = 1e-4
 BATCH_SIZE = 32
-EPOCHS = 10
+EPOCHS = 5
 MODEL_NAME = "google/mobilebert-uncased"
 DATASET_NAME = "imdb"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

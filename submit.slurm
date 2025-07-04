@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=mobilebert_lora_training
+#SBATCH --job-name=mobilebert_imdb_lora_training_1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:a100-40:1
-#SBATCH --time=03:00:00
+#SBATCH --time=02:30:00
 #SBATCH --output=output/mobilebert_output_%j.log
 #SBATCH --mem=16G
 #SBATCH --mail-type=BEGIN,END,FAIL

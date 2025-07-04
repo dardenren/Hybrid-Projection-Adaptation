@@ -1,7 +1,8 @@
 # Data loading & preprocessing
 from datasets import load_dataset
 from transformers import AutoTokenizer
-from config import logger
+from config import logger, BATCH_SIZE
+from torch.utils.data import DataLoader
 
 def load_and_preprocess_data(dataset_name="imdb", model_name="bert-base-uncased"):
     logger.info("Loading and preprocessing IMDB dataset")
@@ -17,4 +18,6 @@ def load_and_preprocess_data(dataset_name="imdb", model_name="bert-base-uncased"
     train_dataset = encoded_dataset["train"]
     test_dataset = encoded_dataset["test"]
     logger.info("Dataset loaded and preprocessed successfully")
+    train_dataset = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    test_dataset = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=True)
     return train_dataset, test_dataset
