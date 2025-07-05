@@ -8,7 +8,7 @@
 #SBATCH --output=output/mobilebert_output_%j.log
 #SBATCH --mem=16G
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=e1355863@u.nus.edu
+#SBATCH --mail-user=e1355863@u.nus.edu,e1426563@u.nus.edu
 
 # Load required modules (adjusted for compatibility)
 module load python/3.10.12
