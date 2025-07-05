@@ -1,6 +1,6 @@
 # Virtual environment
-venv/
-.venv/
+LoRA_training/venv/
+LoRA_training/.venv/
 
 # Python cache files
 __pycache__/
@@ -16,4 +16,3 @@ __pycache__/
 *.env
 *.swp
 *.bak
-/script/venv/  # If your venv is in a subdirectory like /script/venv/
