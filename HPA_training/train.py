@@ -53,9 +53,7 @@ class HpaTrainer():
         self.model.to(self.device)
 
         # --- Training Arguments ---
-        if refresh_adapter_steps % gradient_accumulation_steps != 0:
-            raise ValueError("refresh_adapter_steps must be a multiple of gradient_accumulation_steps")
-
+        # --- Training Arguments ---
         self.num_train_epochs = num_train_epochs
         self.warmup_steps = warmup_steps
         self.gradient_accumulation_steps = gradient_accumulation_steps
@@ -69,6 +67,9 @@ class HpaTrainer():
         if refresh_adapter_steps is None:
             self.refresh_adapter_steps = self.num_training_steps
         else:
+            if refresh_adapter_steps % gradient_accumulation_steps != 0:
+                raise ValueError("refresh_adapter_steps must be a multiple of gradient_accumulation_steps")
+            
             self.refresh_adapter_steps = refresh_adapter_steps
         
         if rank_reduction_cycles is None:
