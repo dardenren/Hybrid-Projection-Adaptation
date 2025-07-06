@@ -45,7 +45,7 @@ def main():
             first_rank_reduction_cycle = None,
             output_dir = './results',
             logging_dir = './logs',
-            logging_steps = 10,
+            logging_steps = 100,
             device = None, 
             lr_scheduler = None, 
             max_grad_norm = 1.0 
