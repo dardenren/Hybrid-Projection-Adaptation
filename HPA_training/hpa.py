@@ -134,11 +134,13 @@ class HpaModule(nn.Module):
 
     def _hpa_forward(self, x: torch.Tensor, module_specific_forward: Callable = lambda u, P: u @ P) -> torch.Tensor:
         """Computes adapter output given input x."""
-        if x.shape[-1] != self.cols:
-            raise ValueError(f"Input shape[-1] {x.shape[-1]} does not match expected {self.cols}")
-
-        if not self.hpa_enabled:
-            return torch.zeros((*x.shape[:-1], self.rows), device=x.device, dtype=x.dtype)
+        if self.adapt_weight_transpose:
+            if not self.hpa_enabled:
+                return torch.zeros((*x.shape[:-1], self.cols), device=x.device, dtype=x.dtype)
+        
+        else:
+            if not self.hpa_enabled:
+                return torch.zeros((*x.shape[:-1], self.rows), device=x.device, dtype=x.dtype)
 
         if self.proj_direction == "left":
             return (module_specific_forward(x, self.A.T) @ self.L.T) * self.scaling
@@ -186,8 +188,11 @@ class HpaModule(nn.Module):
             return U, S, Vt
 
     def _hpa_activate(self, data: torch.Tensor):  # recalculates adapters and set to train mode
-        if data.shape != (expected := (self.rows, self.cols)):
-            raise ValueError(f"Invalid input shape: {data.shape}, expected {expected}")
+        if data.shape != self.weight.shape:
+            raise ValueError(f"Invalid input shape: {data.shape}, expected {self.weight.shape}")
+        
+        if self.adapt_weight_transpose:
+            data = data.T
 
         with torch.no_grad():  # Prevents gradients during initialization
             data.to(self.device, self.dtype)  # Ensure data is on correct device and dtype
@@ -257,8 +262,8 @@ class HpaModule(nn.Module):
         Recalculates adapters while calculating effective rank via SVD.
         Reduces self.rank if applicable.
         """
-        if data.shape != (expected := (self.rows, self.cols)):
-            raise ValueError(f"Invalid input shape: {data.shape}, expected {expected}")
+        if data.shape != self.weight.shape:
+            raise ValueError(f"Invalid input shape: {data.shape}, expected {self.weight.shape}")
 
         with torch.no_grad():
             if self.mode == "svd":
