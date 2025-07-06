@@ -25,7 +25,7 @@ class HpaTrainer():
         num_train_epochs: int = 3,
         warmup_steps: int = 500,
         gradient_accumulation_steps: int = 1, # Crucial: For accumulating gradients
-        refresh_adapter_steps: int = 100, # Recalculates adapters every cycle
+        refresh_adapter_steps: Optional[int] = 100, # Recalculates adapters every cycle
         refresh_type: Literal["weight", "gradient", "other"] = "gradient",
         rank_reduction_cycles: Optional[int] = None, # Every cycle (refresh_adapter_steps), find intrinsic rank (thus requiring SVD)
         first_rank_reduction_cycle: Optional[int] = None,
@@ -65,8 +65,12 @@ class HpaTrainer():
         else:
             self.lr_scheduler = lr_scheduler
 
-        self.refresh_adapter_steps = refresh_adapter_steps
         self.refresh_type = refresh_type
+        if refresh_adapter_steps is None:
+            self.refresh_adapter_steps = self.num_training_steps
+        else:
+            self.refresh_adapter_steps = refresh_adapter_steps
+        
         if rank_reduction_cycles is None:
             self.rank_reduction_steps = self.num_training_steps
         else:

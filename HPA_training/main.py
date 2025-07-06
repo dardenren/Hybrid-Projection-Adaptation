@@ -39,7 +39,7 @@ def main():
             num_train_epochs=EPOCHS,
             warmup_steps = 0,
             gradient_accumulation_steps = 1, 
-            refresh_adapter_steps = 100, 
+            refresh_adapter_steps = None, 
             refresh_type = "weight",
             rank_reduction_cycles = None,
             first_rank_reduction_cycle = None,
