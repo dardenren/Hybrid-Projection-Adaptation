@@ -8,8 +8,8 @@ INITIAL_RANK = 8
 LORA_ALPHA = 16
 LORA_DROPOUT = 0
 
-BATCH_SIZE = 32
-EPOCHS = 5
+BATCH_SIZE = 2
+EPOCHS = 2
 
 MODEL_NAME = "google/mobilebert-uncased"
 DATASET_NAME = "imdb"

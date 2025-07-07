@@ -1,6 +1,8 @@
 # Virtual environment
 LoRA_training/venv/
 LoRA_training/.venv/
+HPA_training/venv/
+HPA_training/.venv/
 
 # Python cache files
 __pycache__/

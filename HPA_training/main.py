@@ -15,7 +15,7 @@ def main():
         train_dataset, test_dataset = load_and_preprocess_data(DATASET_NAME, MODEL_NAME)
 
         logger.info("Replacing target modules with HPA")
-        replace_with_hpa(model, set_rank_fn=lambda m,n: INITIAL_RANK, hpa_dropout=LORA_DROPOUT, hpa_alpha=LORA_ALPHA)
+        replace_with_hpa(model, set_rank_fn=lambda m,n: INITIAL_RANK, mode="lora", hpa_dropout=LORA_DROPOUT, hpa_alpha=LORA_ALPHA)
         
         model.to(DEVICE)
 
