@@ -92,8 +92,8 @@ class HpaTrainer():
         # os.makedirs(self.logging_dir, exist_ok=True)
         self.global_step = 0
 
-        print(f"Trainer initialized. Device: {self.device}")
-        print(f"Total training steps: {self.num_training_steps}")
+        logger.info(f"Trainer initialized. Device: {self.device}")
+        logger.info(f"Total training steps: {self.num_training_steps}")
 
     def _create_default_lr_scheduler(self):
         """Creates a simple linear warmup then linear decay scheduler."""
@@ -119,7 +119,7 @@ class HpaTrainer():
             labels = batch.get('labels') if 'labels' in batch else batch[1]
 
             if self.global_step % self.refresh_adapter_steps == 0:
-                print(f"--- Refresh adapter at {self.global_step} ---")
+                logger.info(f"--- Refresh adapter at {self.global_step} ---")
                 rank_reduction_condition = (self.global_step >= self.first_rank_reduction_step) and \
                 (self.global_step - self.first_rank_reduction_step) % self.rank_reduction_steps == 0
                 
@@ -166,7 +166,7 @@ class HpaTrainer():
             if self.global_step % self.logging_steps == 0:
                 avg_loss = total_loss / steps_since_last_log
                 current_lr = self.lr_scheduler.get_last_lr()[0]
-                print(f"Step {self.global_step}/{self.num_training_steps} | "
+                logger.info(f"Step {self.global_step}/{self.num_training_steps} | "
                       f"Loss: {avg_loss:.4f} | "
                       f"LR: {current_lr:.6f} | "
                       f"Time: {datetime.now().strftime('%H:%M:%S')}")
@@ -180,7 +180,7 @@ class HpaTrainer():
         correct_predictions = 0
         total_samples = 0
 
-        print(f"\nEvaluating after epoch {epoch + 1}...")
+        logger.info(f"\nEvaluating after epoch {epoch + 1}...")
         with torch.no_grad(): # Disable gradient computation during evaluation
             for step, batch in enumerate(self.eval_dataloader):
                 batch = {k: v.to(self.device) for k, v in batch.items()}
@@ -205,10 +205,10 @@ class HpaTrainer():
         avg_eval_loss = eval_loss / len(self.eval_dataloader)
         accuracy = correct_predictions / total_samples if total_samples > 0 else 0
 
-        print(f"Evaluation Results (Epoch {epoch + 1}):")
-        print(f"  Avg Eval Loss: {avg_eval_loss:.4f}")
+        logger.info(f"Evaluation Results (Epoch {epoch + 1}):")
+        logger.info(f"  Avg Eval Loss: {avg_eval_loss:.4f}")
         if total_samples > 0:
-            print(f"  Accuracy: {accuracy:.4f}")
+            logger.info(f"  Accuracy: {accuracy:.4f}")
 
         self.model.train() # Set model back to training mode
         return avg_eval_loss, accuracy
@@ -223,14 +223,14 @@ class HpaTrainer():
     #         'lr_scheduler_state_dict': self.lr_scheduler.state_dict() if self.lr_scheduler else None,
     #         # 'best_metric': self.best_metric, # If you implement early stopping
     #     }, checkpoint_path)
-    #     print(f"Checkpoint saved to {checkpoint_path}")
+    #     logger.info(f"Checkpoint saved to {checkpoint_path}")
 
     def train(self):
-        print("Starting training...")
+        logger.info("Starting training...")
         start_time = time.time()
 
         for epoch in range(self.num_train_epochs):
-            print(f"\n--- Epoch {epoch + 1}/{self.num_train_epochs} ---")
+            logger.info(f"--- Epoch {epoch + 1}/{self.num_train_epochs} ---")
             self._train_epoch()
 
             # Evaluate after each epoch
@@ -240,7 +240,7 @@ class HpaTrainer():
             # self._save_checkpoint(epoch)
 
         end_time = time.time()
-        print(f"\nTraining complete! Total time: {end_time - start_time:.2f} seconds")
+        logger.info(f"\nTraining complete! Total time: {end_time - start_time:.2f} seconds")
   
 
 

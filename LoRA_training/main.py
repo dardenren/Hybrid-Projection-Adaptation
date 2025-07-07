@@ -1,3 +1,8 @@
+import os
+if (not os.path.isdir("output")):
+    os.mkdir("output")
+
+
 import torch
 import logging
 from config import *
@@ -5,6 +10,7 @@ from data import load_and_preprocess_data
 from model import load_model
 from lora import mark_only_lora_as_trainable, lora_state_dict
 from train import train_model
+
 
       
 def main():

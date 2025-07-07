@@ -1,3 +1,8 @@
+import os
+if (not os.path.isdir("output")):
+    os.mkdir("output")
+
+
 import torch
 from config import *
 from data import load_and_preprocess_data
@@ -5,7 +10,9 @@ from transformers import AutoModelForSequenceClassification
 from train import HpaTrainer
 from hpa import replace_with_hpa, make_flexi_optimizer
 
-      
+
+
+
 def main():
     try:
         logger.info(f"Initializing model: {MODEL_NAME}")

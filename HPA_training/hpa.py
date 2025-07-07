@@ -44,7 +44,7 @@ class HpaModule(nn.Module):
             self.rows, self.cols = self.weight.shape[:2]
 
         if rank > (eff_rank := min(self.rows, self.cols) // 2):
-            print(f"Warning: input rank {rank} exceeds effective rank {eff_rank}, reduced to {eff_rank}")
+            logger.info(f"Warning: input rank {rank} exceeds effective rank {eff_rank}, reduced to {eff_rank}")
             rank = eff_rank
 
         self.rank = rank
