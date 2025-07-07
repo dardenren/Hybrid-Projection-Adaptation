@@ -5,7 +5,7 @@ from config import *
 from torch.utils.data import DataLoader
 
 def load_and_preprocess_data(dataset_name, model_name):
-    logger.info("Loading and preprocessing IMDB dataset")
+    logger.info(f"Loading and preprocessing {dataset_name} dataset")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     def preprocess_function(examples):
