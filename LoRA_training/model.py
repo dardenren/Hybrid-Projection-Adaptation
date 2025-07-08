@@ -18,13 +18,14 @@ def set_module(model, module_name, new_module):
     setattr(current_module, last_part, new_module)
 
 
-# Helper function, use load_model directly
-def __load_model_lora(model_name, r=4, lora_alpha=16, merge_weights=True, linear=True, embedding=True):
+def load_model(model_name=MODEL_NAME, r=4, lora_alpha=16, merge_weights=True, linear=True, embedding=True):
     """
     linear : bool -> Option to change Linear layer to LoRALinear
     embedding : bool -> Option to change Embedding layer to LoRAEmbedding
     """
+    logger.info(f"Initializing model: {model_name}")
     model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2) 
+    logger.info("Model initialized")
     if not linear and not embedding:
         return model
     
@@ -47,25 +48,7 @@ def __load_model_lora(model_name, r=4, lora_alpha=16, merge_weights=True, linear
     logger.info("Model initialized and adapted to LoRA")
     return model
 
-# General function to load
-def load_model(model_name=MODEL_NAME, type="normal", **kwargs):
-    """
-    type : str ->
-        "normal" = base model
-        "lora" = model with lora matrices at linear layers
-        "hpa" = model with hpa 
-    
-    **kwargs -> lora/hpa kwargs
-    """
-    logger.info(f"Initializing model: {model_name}")
-    if type == "normal":
-        model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2)
-        logger.info("Model initialized")
-        return model
-    elif type == "lora":
-        return __load_model_lora(model_name, **kwargs)
-    elif type == "hpa":
-        pass
+
 
 
 

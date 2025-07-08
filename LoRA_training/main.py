@@ -19,8 +19,8 @@ def main():
         train_dataset, test_dataset = load_and_preprocess_data(DATASET_NAME, MODEL_NAME)
         
         # Load and adapt model
-        model = load_model(model_name=MODEL_NAME, type="lora", r=LORA_RANK, 
-                        lora_alpha=LORA_ALPHA, merge_weights=MERGE_WEIGHTS, linear= True, embedding=False)
+        model = load_model(model_name=MODEL_NAME, r=LORA_RANK, 
+                        lora_alpha=LORA_ALPHA, merge_weights=MERGE_WEIGHTS, linear=True, embedding=False)
         
         # Mark only LoRA parameters as trainable
         mark_only_lora_as_trainable(model)
