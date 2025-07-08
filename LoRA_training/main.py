@@ -15,6 +15,10 @@ from train import train_model
       
 def main():
     try:
+        logger.info(f"Hyperparameters - LoRA Rank: {LORA_RANK}, LoRA Alpha: {LORA_ALPHA}, "
+            f"Merge Weights: {MERGE_WEIGHTS}, Learning Rate: {LEARNING_RATE}, "
+            f"Batch Size: {BATCH_SIZE}, Epochs: {EPOCHS}, "
+            f"Model: {MODEL_NAME}, Dataset: {DATASET_NAME}")
         # Load data
         train_dataset, test_dataset = load_and_preprocess_data(DATASET_NAME, MODEL_NAME)
         
