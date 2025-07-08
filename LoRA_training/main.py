@@ -20,7 +20,7 @@ def main():
         
         # Load and adapt model
         model = load_model(model_name=MODEL_NAME, r=LORA_RANK, 
-                        lora_alpha=LORA_ALPHA, merge_weights=MERGE_WEIGHTS, linear=True, embedding=False)
+                        lora_alpha=LORA_ALPHA, merge_weights=MERGE_WEIGHTS, linear=True, embedding=True)
         
         # Mark only LoRA parameters as trainable
         mark_only_lora_as_trainable(model)
