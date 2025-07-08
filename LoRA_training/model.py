@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from lora import *
-from config import logger
+from config import logger, MODEL_NAME
 
 from transformers import AutoModelForSequenceClassification
 
@@ -19,12 +19,12 @@ def set_module(model, module_name, new_module):
 
 
 # Helper function, use load_model directly
-def __load_model_lora(model_name="bert-base-uncased", r=4, lora_alpha=16, merge_weights=True, linear=True, embedding=True):
+def __load_model_lora(model_name, r=4, lora_alpha=16, merge_weights=True, linear=True, embedding=True):
     """
     linear : bool -> Option to change Linear layer to LoRALinear
     embedding : bool -> Option to change Embedding layer to LoRAEmbedding
     """
-    model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2) 
+    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2) 
     if not linear and not embedding:
         return model
     
@@ -48,7 +48,7 @@ def __load_model_lora(model_name="bert-base-uncased", r=4, lora_alpha=16, merge_
     return model
 
 # General function to load
-def load_model(model_name="bert-base-uncased", type="normal", **kwargs):
+def load_model(model_name=MODEL_NAME, type="normal", **kwargs):
     """
     type : str ->
         "normal" = base model
@@ -58,8 +58,8 @@ def load_model(model_name="bert-base-uncased", type="normal", **kwargs):
     **kwargs -> lora/hpa kwargs
     """
     logger.info(f"Initializing model: {model_name}")
-    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2)
     if type == "normal":
+        model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2)
         logger.info("Model initialized")
         return model
     elif type == "lora":
