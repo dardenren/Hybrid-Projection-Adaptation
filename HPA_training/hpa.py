@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from config import logger
 
 
 class HpaModule(nn.Module):
@@ -10,6 +11,12 @@ class HpaModule(nn.Module):
     HPA methods for modular low-rank updates on a base weight matrix.
     Supports multiple projection directions, initialization modes, and rank adjustments.
     """
+
+    VALID_PROJ_DIRECTIONS = ("left", "right", "thin_left", "thin_right", "fat_right", "fat_left", "both")
+    FINAL_PROJ_DIRECTIONS = ("left", "right", "both")
+    PROJ_MODES = ("svd", "random", "random_sample", "lora")
+    PREFIX_PROJ_MODES = ("random_svd", "power_sample")
+    NO_PROJ_MODES = ("lora")
 
     def __init__(
         self,
@@ -24,12 +31,11 @@ class HpaModule(nn.Module):
         **kwargs
     ):
 
-        if proj_direction not in ["left", "right", "thin_left", "thin_right", "fat_right", "fat_left", "both"]:
+        if proj_direction not in self.VALID_PROJ_DIRECTIONS:
             raise ValueError(f"Invalid projection direction: {proj_direction}")
 
-        if mode not in ["svd", "random", "random_sample", "lora"]:
-            valid_prefixes = ["random_svd", "power_sample"]
-            if not any(mode.startswith(p) and mode[len(p):].isdigit() for p in valid_prefixes):
+        if not (mode in self.PROJ_MODES or mode in self.NO_PROJ_MODES):
+            if not any(mode.startswith(prefix) and mode[len(prefix):].isdigit() for prefix in self.PREFIX_PROJ_MODES):
                 raise ValueError(f"Invalid mode: {mode}")
 
         if rank <= 0:
@@ -49,14 +55,14 @@ class HpaModule(nn.Module):
 
         self.rank = rank
         self.mode = mode
-        if mode in ["lora"]:
+        if mode in self.NO_PROJ_MODES:
             self.proj_direction = "left"
-        elif proj_direction in ["left", "right", "both"]:
+        elif proj_direction in self.FINAL_PROJ_DIRECTIONS:
             self.proj_direction = proj_direction
         elif self.rows <= self.cols:
-            self.proj_direction = "right" if proj_direction in ["thin_left", "fat_right"] else "left"
+            self.proj_direction = "right" if proj_direction in ("thin_left", "fat_right") else "left"
         else:
-            self.proj_direction = "left" if proj_direction in ["thin_left", "fat_right"] else "right"
+            self.proj_direction = "left" if proj_direction in ("thin_left", "fat_right") else "right"
 
         self.hpa_dropout = lambda x: x if not hpa_dropout else nn.Dropout(p=hpa_dropout)
         self.scaling = 1.0 if hpa_alpha is None else hpa_alpha / rank
@@ -137,7 +143,7 @@ class HpaModule(nn.Module):
         if self.adapt_weight_transpose:
             if not self.hpa_enabled:
                 return torch.zeros((*x.shape[:-1], self.cols), device=x.device, dtype=x.dtype)
-        
+
         else:
             if not self.hpa_enabled:
                 return torch.zeros((*x.shape[:-1], self.rows), device=x.device, dtype=x.dtype)
@@ -190,17 +196,17 @@ class HpaModule(nn.Module):
     def _hpa_activate(self, data: torch.Tensor):  # recalculates adapters and set to train mode
         if data.shape != self.weight.shape:
             raise ValueError(f"Invalid input shape: {data.shape}, expected {self.weight.shape}")
-        
+
         if self.adapt_weight_transpose:
             data = data.T
 
         with torch.no_grad():  # Prevents gradients during initialization
             data.to(self.device, self.dtype)  # Ensure data is on correct device and dtype
 
-            if self.mode not in ["lora"]:  # QR/SVD-based initialization for most modes
+            if self.mode not in self.NO_PROJ_MODES:  # QR/SVD-based initialization for most modes
 
                 if self.mode == "svd":  # Full deterministic SVD
-                    U, D, Vt = torch.linalg.svd(data, full_matrices=False)
+                    U, S, Vt = torch.linalg.svd(data, full_matrices=False)
                     L = U[:, :self.rank]  # Left singular vectors
                     R = Vt[:self.rank, :]  # Right singular vectors
 
@@ -268,13 +274,13 @@ class HpaModule(nn.Module):
         with torch.no_grad():
             if self.mode == "svd":
                 S = torch.linalg.svd(self.weight.grad, full_matrices=False)[1]
-            else:  # Default to randomized SVD with 2 power iterations for efficiency
+            else:  # If precision isn't required, use randomized SVD with 2 power iterations for efficiency
                 S = self._randomized_svd(self.weight.grad, 2)[1]
 
-            # Threshold based on machine epsilon and scale to detect near-zero singular values
+            # Threshold for singular values
             cutoff = self.epscale * torch.finfo(self.dtype).eps * torch.max(data)
             effective_rank = (S > cutoff).sum().item()
-            self.rank = min(effective_rank, self.rank)  # Adjust rank
+            self.rank = min(effective_rank, self.rank) # May consider scaling to power of 2
             self._hpa_activate(data)
 
         self.hpa_enabled = True
@@ -306,16 +312,16 @@ class HpaModule(nn.Module):
                 self.weight -= self._hpa_consolidate_weights()
 
     def reactivate_on_weight(self, checkrank: bool = False):
-        """Reinitializes adapter based on stored weight matrix."""
+        """Reinitializes adapter based on current weights."""
         self.reactivate_on_input(self.weight.data, checkrank)
 
     def reactivate_on_gradient(self, checkrank: bool = False):
-        """Reinitializes adapter based on gradient matrix."""
+        """Reinitializes adapter based on current gradients."""
         self.reactivate_on_input(self.weight.grad, checkrank)
 
-    def accumulated_size(self, fn: Callable[[int, int, int], int]) -> int:
-        """Computes storage cost given size function fn(m, n, rank)."""
-        return fn(self.cols, self.rows, self.accumulated_rank)
+    def accumulated_size(self) -> int:
+        """Computes optimal storage cost (no. of parameters) that can be achieved via low-rank decomposition."""
+        return min(self.accumulated_rank * (self.rows + self.cols), self.rows * self.cols)
 
     def get_side_adapter(self) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         L = self.L.data if (self.hpa_enabled and hasattr(self, "L")) else None
