@@ -200,7 +200,7 @@ class HpaModule(nn.Module):
             if self.mode not in ["lora"]:  # QR/SVD-based initialization for most modes
 
                 if self.mode == "svd":  # Full deterministic SVD
-                    U, S, Vt = torch.linalg.svd(data, full_matrices=False)
+                    U, D, Vt = torch.linalg.svd(data, full_matrices=False)
                     L = U[:, :self.rank]  # Left singular vectors
                     R = Vt[:self.rank, :]  # Right singular vectors
 
@@ -234,7 +234,7 @@ class HpaModule(nn.Module):
                         for i in range(int(self.mode[12:])):
                             Y = data @ Y
                             Y = data.T @ Y
-                        R = torch.linalg.qr(data.T @ (data @ torch.randn((self.cols, self.rank), device=self.device, dtype=self.dtype)))[0].T
+                        R = torch.linalg.qr(Y)[0].T
 
                 # Final parameter assignment based on projection direction
                 if self.proj_direction == "left":
