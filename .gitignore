@@ -3,6 +3,10 @@ LoRA_training/venv/
 LoRA_training/.venv/
 HPA_training/venv/
 HPA_training/.venv/
+Galore_training/venv/
+Galore_training/.venv/
+Fullrank_training/venv/
+Fullrank_training/.venv/
 
 # Python cache files
 __pycache__/
@@ -18,3 +22,4 @@ __pycache__/
 *.env
 *.swp
 *.bak
+*.pt
