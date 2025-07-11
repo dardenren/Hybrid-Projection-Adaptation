@@ -27,6 +27,8 @@ def main():
         logger.info("Starting training")
         trainer.train()
 
+        model.eval()  
+        torch.save(model.state_dict(), "output/fine_tuned_bert_hpa.pt")
 
     except Exception as e:
         logger.error(f"Error in main: {str(e)}")

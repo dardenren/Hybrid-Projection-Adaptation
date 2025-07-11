@@ -23,7 +23,6 @@ from config import BATCH_SIZE, EPOCHS, LEARNING_RATE, OPTIM, OPTIM_TARGET_MODULE
 def setup_trainer(model, train_dataset, test_dataset):
     """Set up the Hugging Face Trainer with GaLore optimizer."""
     training_args = TrainingArguments(
-        output_dir="output/fine_tuned_bert_galore.pt",
         num_train_epochs=EPOCHS,
         per_device_train_batch_size=BATCH_SIZE,
         learning_rate=LEARNING_RATE,
