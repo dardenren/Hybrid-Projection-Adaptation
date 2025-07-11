@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=mobilebert_imdb_hpa_training_1
+#SBATCH --job-name=mobilebert_imdb_hpa_training
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4
