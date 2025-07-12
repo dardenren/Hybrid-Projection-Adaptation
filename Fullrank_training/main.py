@@ -19,7 +19,7 @@ def main():
         
         # Setting up trainer
         logger.info("Setting up trainer")
-        trainer = setup_trainer(model, tokenizer, train_dataset=train_dataset, test_dataset=test_dataset)
+        trainer = setup_trainer(model, tokenizer, train_dataset, test_dataset)
         
         logger.info("Starting training")
         trainer.train()
