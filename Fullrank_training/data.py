@@ -4,10 +4,12 @@ from transformers import AutoTokenizer
 from config import logger, BATCH_SIZE, MODEL_NAME, DATASET_NAME
 # from torch.utils.data import DataLoader
 
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
 def load_and_preprocess_data(dataset_name=DATASET_NAME, model_name=MODEL_NAME):
     logger.info(f"Loading and preprocessing {dataset_name} dataset")
     dataset = load_dataset(dataset_name)
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    # tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     def preprocess_function(examples):
         return tokenizer(examples["text"], truncation=True, padding=True, max_length=512)

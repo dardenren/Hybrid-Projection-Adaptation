@@ -1,7 +1,7 @@
 import torch
 from config import *
 from transformers import AutoModelForSequenceClassification, Trainer, TrainingArguments
-from data import load_and_preprocess_data
+from data import load_and_preprocess_data, tokenizer
 from train import setup_trainer
 
 def main():
@@ -19,7 +19,7 @@ def main():
         
         # Setting up trainer
         logger.info("Setting up trainer")
-        trainer = setup_trainer(model, train_dataset=train_dataset, test_dataset=test_dataset)
+        trainer = setup_trainer(model, tokenizer, train_dataset=train_dataset, test_dataset=test_dataset)
         
         logger.info("Starting training")
         trainer.train()
