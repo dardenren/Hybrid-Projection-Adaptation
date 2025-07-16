@@ -84,7 +84,7 @@ class HpaModule(nn.Module):
         return 1.0 if self.hpa_alpha is None else self.hpa_alpha / self.rank
 
     def param_repr(self) -> str:
-        repr = f"mode={self.mode}, rank={self.rank}"
+        repr = f"mode='{self.mode}', rank={self.rank}"
         if self.mode not in self.NO_PROJ_MODES:
             repr += f", proj_direction={self.proj_direction}"
         if self.hpa_alpha is not None:
