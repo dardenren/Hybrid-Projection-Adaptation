@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=mobilebert_imdb_hpa_training
+#SBATCH --job-name=mobilebert_imdb_galore_training
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:a100-40:1
 #SBATCH --time=02:30:00
-#SBATCH --output=output/mobilebert_hpa_output_%j.log
+#SBATCH --output=output/mobilebert_output_%j.log
 #SBATCH --mem=16G
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=e1355863@u.nus.edu,e1426563@u.nus.edu
