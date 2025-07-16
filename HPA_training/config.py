@@ -5,8 +5,8 @@ from logging.handlers import RotatingFileHandler
 # Hyperparameters
 LEARNING_RATE = 1e-4
 INITIAL_RANK = 8
-LORA_ALPHA = 16
-LORA_DROPOUT = 0
+HPA_ALPHA = 16
+HPA_DROPOUT = 0
 
 BATCH_SIZE = 32
 EPOCHS = 4
@@ -24,5 +24,5 @@ if not logger.handlers:  # Avoid reconfiguring if already set
     logger.addHandler(handler)
 
 
-__all__ = ["logger", "LEARNING_RATE", "INITIAL_RANK", "LORA_ALPHA", "LORA_DROPOUT", "BATCH_SIZE", "EPOCHS", "MODEL_NAME", "DATASET_NAME", "DEVICE"]
+__all__ = ["logger", "LEARNING_RATE", "INITIAL_RANK", "HPA_ALPHA", "HPA_DROPOUT", "BATCH_SIZE", "EPOCHS", "MODEL_NAME", "DATASET_NAME", "DEVICE"]
 

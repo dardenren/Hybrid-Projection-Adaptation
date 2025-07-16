@@ -12,10 +12,10 @@ class HpaModule(nn.Module):
     Supports multiple projection directions, initialization modes, and rank adjustments.
     """
 
-    VALID_PROJ_DIRECTIONS = ("left", "right", "thin_left", "thin_right", "fat_right", "fat_left", "both")
-    FINAL_PROJ_DIRECTIONS = ("left", "right", "both")
+    VALID_PROJ_DIRECTIONS = ("left", "right", "thin_left", "thin_right", "fat_right", "fat_left", "both", "diag")
+    FINAL_PROJ_DIRECTIONS = ("left", "right", "both", "diag")
     PROJ_MODES = ("svd", "random", "random_sample", "lora")
-    PREFIX_PROJ_MODES = ("random_svd", "power_sample")
+    PREFIX_PROJ_MODES = ("random_svd_", "power_sample_")
     NO_PROJ_MODES = ("lora")
 
     def __init__(
@@ -65,10 +65,9 @@ class HpaModule(nn.Module):
             self.proj_direction = "left" if proj_direction in ("thin_left", "fat_right") else "right"
 
         self.hpa_dropout = lambda x: x if not hpa_dropout else nn.Dropout(p=hpa_dropout)
-        self.scaling = 1.0 if hpa_alpha is None else hpa_alpha / rank
+        self.hpa_alpha = hpa_alpha
         self.epscale = eps_scale * max(self.rows, self.cols)
 
-        self.NONE_TENSOR = nn.Parameter(torch.empty(0, device=self.device), requires_grad=False)
         self._hpa_reset_and_disable()
         self.accumulated_rank = 0
 
@@ -80,56 +79,30 @@ class HpaModule(nn.Module):
     def device(self):
         return self.weight.device
 
+    @property
+    def scaling(self):
+        return 1.0 if self.hpa_alpha is None else self.hpa_alpha / self.rank
+
     def param_repr(self) -> str:
         repr = f"mode={self.mode}, rank={self.rank}"
-        return repr
-
-    def attr_repr(self) -> str:
-        repr = f"\n  weight: "
-        if self.weight.requires_grad:
-            repr += "Trainable\n"
-        else:
-            repr += "Frozen\n"
-
-        if hasattr(self, "L"):
-            repr += f"  L: "
-            if self.L is self.NONE_TENSOR:
-                repr += "Inactive\n"
-            elif self.L.requires_grad:
-                repr += "Trainable\n"
-            else:
-                repr += "Frozen\n"
-
-        repr += f"  A: "
-        if self.A is self.NONE_TENSOR:
-            repr += "Inactive\n"
-        elif self.A.requires_grad:
-            repr += "Trainable\n"
-        else:
-            repr += "Frozen\n"
-
-        if hasattr(self, "R"):
-            repr += f"  R: "
-            if self.R is self.NONE_TENSOR:
-                repr += "Inactive\n"
-            elif self.R.requires_grad:
-                repr += "Trainable\n"
-            else:
-                repr += "Frozen\n"
+        if self.mode not in self.NO_PROJ_MODES:
+            repr += f", proj_direction={self.proj_direction}"
+        if self.hpa_alpha is not None:
+            repr += f", hpa_alpha={self.hpa_alpha}"
         return repr
 
     def _hpa_reset_and_disable(self):
         """Sets adapters to effectively None."""
         if self.proj_direction == "left":
-            self.L = self.NONE_TENSOR
-            self.A = self.NONE_TENSOR
+            self.L = None
+            self.A = None
         elif self.proj_direction == "right":
-            self.A = self.NONE_TENSOR
-            self.R = self.NONE_TENSOR
+            self.A = None
+            self.R = None
         else:
-            self.L = self.NONE_TENSOR
-            self.A = self.NONE_TENSOR
-            self.R = self.NONE_TENSOR
+            self.L = None
+            self.A = None
+            self.R = None
 
         self.hpa_enabled = False
 
@@ -152,8 +125,10 @@ class HpaModule(nn.Module):
             return (module_specific_forward(x, self.A.T) @ self.L.T) * self.scaling
         elif self.proj_direction == "right":
             return (module_specific_forward(x, self.R.T) @ self.A.T) * self.scaling
+        elif self.proj_direction == "both":
+            return ((module_specific_forward(x, self.R.T) @ self.A.T) @ self.L.T) * self.scaling
         else:
-            return (module_specific_forward(x, self.R.T) @ self.A.T @ self.L.T) * self.scaling
+            return ((module_specific_forward(x, self.R.T) * self.A) @ self.L.T) * self.scaling
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError("forward() must be overriden by subclass")
@@ -167,8 +142,10 @@ class HpaModule(nn.Module):
             res = (self.L.data @ self.A.data) * self.scaling
         elif self.proj_direction == "right":
             res = (self.A.data @ self.R.data) * self.scaling
+        elif self.proj_direction == "both":
+            res = ((self.L.data @ self.A.data) @ self.R.data) * self.scaling
         else:
-            res = (self.L.data @ self.A.data @ self.R.data) * self.scaling
+            res = ((self.L.data * self.A.data) @ self.R.data) * self.scaling
 
         return res.T if self.adapt_weight_transpose else res
 
@@ -210,11 +187,12 @@ class HpaModule(nn.Module):
                     L = U[:, :self.rank]  # Left singular vectors
                     R = Vt[:self.rank, :]  # Right singular vectors
 
-                elif "random_svd" in self.mode:  # Approximate randomized SVD with power iterations
-                    L, D, R = self._randomized_svd(data, int(self.mode[10:]))
+                elif "random_svd_" in self.mode:  # Approximate randomized SVD with power iterations
+                    L, D, R = self._randomized_svd(data, int(self.mode[11:]))
 
                 elif self.mode == "random":
-                    # Fully random orthogonal initialization
+                    # Fully random orthogonal initialization.
+                    # No mathematical difference with random_sample when projecting on smaller side
                     if self.proj_direction != "right":
                         L = torch.linalg.qr(torch.randn((self.rows, self.rank), device=self.device, dtype=self.dtype))[0]
                     if self.proj_direction != "left":
@@ -227,17 +205,18 @@ class HpaModule(nn.Module):
                     if self.proj_direction != "left":
                         R = torch.linalg.qr(data.T @ torch.randn((self.rows, self.rank), device=self.device, dtype=self.dtype))[0].T
 
-                elif "power_sample" in self.mode:
+                elif "power_sample_" in self.mode:
                     # Similar to randomized SVD, but avoids final SVD step
+                    iters = int(self.mode[13:])
                     if self.proj_direction != "right":
                         Y = torch.randn((self.rows, self.rank), device=self.device, dtype=self.dtype)
-                        for i in range(int(self.mode[12:])):  # repeated power iterations
+                        for i in range(iters):
                             Y = data.T @ Y
                             Y = data @ Y
                         L = torch.linalg.qr(Y)[0]
                     if self.proj_direction != "left":
                         Y = torch.randn((self.cols, self.rank), device=self.device, dtype=self.dtype)
-                        for i in range(int(self.mode[12:])):
+                        for i in range(iters):
                             Y = data @ Y
                             Y = data.T @ Y
                         R = torch.linalg.qr(Y)[0].T
@@ -249,12 +228,16 @@ class HpaModule(nn.Module):
 
                 elif self.proj_direction == "right":
                     self.R = nn.Parameter(R, requires_grad=False)
-                    self.A = nn.Parameter(data @ R.T, requires_grad=True)  # Right subspace
+                    self.A = nn.Parameter(data @ R.T, requires_grad=True)
 
                 else:
                     self.L = nn.Parameter(L, requires_grad=False)
                     self.R = nn.Parameter(R, requires_grad=False)
-                    self.A = nn.Parameter(L.T @ data @ R.T, requires_grad=True)  # Double projection
+                    if self.proj_direction == "both":
+                        self.A = nn.Parameter(L.T @ data @ R.T, requires_grad=True)
+                    elif self.proj_direction == "diag":
+                        self.A = nn.Parameter(torch.diagonal(L.T @ data @ R.T), requires_grad=True)
+
 
             else:  # Non-QR based initialization, e.g., LoRA
                 if self.mode == "lora":
@@ -435,11 +418,26 @@ class HpaEmbedding(HpaModule, nn.Embedding):
         nn.Embedding.train(self, mode)
 
 
-def make_flexi_optimizer(optimizer: Type[optim.Optimizer], target_states: List[str]) -> optim.Optimizer:
+def make_flexi_optimizer(
+    optimizer: Type[optim.Optimizer],
+    target_states: Optional[Dict[str, Tuple[Callable, Callable]]] = None) -> optim.Optimizer:
     """
-    Wraps an optimizer to support state projection for HPA layers.
-    Allows transitioning optimizer state between full weights (weight) and adapters (A),
-    while managing internal parameter lists and placeholder tensors.
+    Wraps an optimizer to support specialized operations for HPA layers.
+
+    Before calling merge_weights or after calling reactivate on all HPA modules:
+
+    - For optimizers whose states are completely *projectable*, 
+      if a projection mode is chosen, with a non-diagonal proj_direction,
+      there is an option to project the states from full weights to adapters and vice versa.
+
+    - Otherwise, refreshes the states.
+
+    Projectable state:
+    For any finite sequence of gradients (G_n), and a state induced by a function F(G_1, ..., G_n).
+    A state is projectable if there exists a surjective transformation T (left inverse denoted by T^-1),
+    such that given an arbitrary matrix P, T^-1(P*T(F(G_1, ..., G_n))) = F(P*G_1, P*G_2, ..., P*G_n).
+
+    Note that not all optimizers fulfil the above criteria.
     """
 
     class FlexiStateOptimizer(optimizer):
@@ -448,8 +446,7 @@ def make_flexi_optimizer(optimizer: Type[optim.Optimizer], target_states: List[s
             Initializes optimizer with special handling for HPA modules.
 
             - Expects params to be an iterable of (name, param) tuples, or dicts with the key 'params' containing (name, param) tuples.
-            - Detects HPA modules and duplicates their 'weight' param slots with corresponding 'A' placeholders.
-            - Stores placeholders as empty tensors to satisfy optimizer param constraints.
+            - Detects HPA modules and allocates the front param slots to those modules accordingly.
             """
             params = [*params]
             if not isinstance(params[0], dict):
@@ -482,7 +479,7 @@ def make_flexi_optimizer(optimizer: Type[optim.Optimizer], target_states: List[s
                 pg['params'] = hpa_params_list + params_list
 
             self.hpa_enabled = False  # Tracks whether optimizer is in adapter mode (True) or full weights mode (False)
-            self.target_states = target_states[:]
+            self.target_states = target_states
             optimizer.__init__(self, params, **kwargs)
 
         def _set_hpa_param(self, module: HpaModule, value: nn.Parameter, offset: int = 0) -> None:
@@ -493,6 +490,7 @@ def make_flexi_optimizer(optimizer: Type[optim.Optimizer], target_states: List[s
         def project_states(self):
             """
             Projects optimizer state values from full weights to corresponding adapters (A).
+            Call immediately upon reactivation of all adapters.
 
             - Moves target states (e.g., momentum, variance) from weight to A.
             - Applies the relevant transformations to each state during transfer.
@@ -502,12 +500,15 @@ def make_flexi_optimizer(optimizer: Type[optim.Optimizer], target_states: List[s
                 return
 
             for module in self.hpa_modules:
-                if module.mode not in ["lora"]: # Modes that require projection
-                    state_dict = self.state.pop(module.weight, {})
+                if module.mode not in ["lora"] and module.proj_direction != "diag" and \
+                self.target_states is not None:
 
-                    for target_state in self.target_states:
+                    state_dict = self.state.pop(module.weight, {})
+                    module.weight.grad = None
+
+                    for target_state, transforms in self.target_states.items():
                         if target_state in state_dict:
-                            temp = state_dict[target_state]
+                            temp = transforms[0](state_dict[target_state])
                             side_transpose = module.get_side_transpose()
 
                             with torch.no_grad():
@@ -516,21 +517,21 @@ def make_flexi_optimizer(optimizer: Type[optim.Optimizer], target_states: List[s
                                 if side_transpose[1] is not None:
                                     temp = temp @ side_transpose[1]
 
-                            state_dict[target_state] = temp
+                            state_dict[target_state] = transforms[1](temp)
 
-                else: # Modes that do not require projection. Currently only LoRA is supported
+                else: # Modes that do not require projection.
                     state_dict = {}
                     self._set_hpa_param(module, module.L, 1)
 
                 self._set_hpa_param(module, module.A)
                 self.state[module.A] = state_dict
 
-            self.zero_grad()
             self.hpa_enabled = True
 
         def merge_states(self):
             """
             Merges optimizer state values from adapters (A) back to full weights.
+            Call immediately upon consolidation of all full weights.
 
             - Moves target states from A to weight.
             - Applies the relevant transformations to each state during transfer.
@@ -540,12 +541,15 @@ def make_flexi_optimizer(optimizer: Type[optim.Optimizer], target_states: List[s
                 return
 
             for module in self.hpa_modules:
-                if module.mode not in ["lora"]: # Modes that require projection
-                    state_dict = self.state.pop(module.A, {})
+                if module.mode not in ["lora"] and module.proj_direction != "diag" and \
+                self.target_states is not None: 
 
-                    for target_state in self.target_states:
+                    state_dict = self.state.pop(module.A, {})
+                    module.A.grad = None
+
+                    for target_state, transforms in self.target_states.items():
                         if target_state in state_dict:
-                            temp = state_dict[target_state]
+                            temp = transforms[0](state_dict[target_state])
                             side_adapter = module.get_side_adapter()
 
                             with torch.no_grad():
@@ -554,7 +558,7 @@ def make_flexi_optimizer(optimizer: Type[optim.Optimizer], target_states: List[s
                                 if side_adapter[1] is not None:
                                     temp = temp @ side_adapter[1]
 
-                            state_dict[target_state] = temp
+                            state_dict[target_state] = transforms[1](temp)
 
                 else: # Modes that do not require projection
                     state_dict = {}
@@ -563,7 +567,6 @@ def make_flexi_optimizer(optimizer: Type[optim.Optimizer], target_states: List[s
                 self._set_hpa_param(module, module.weight)
                 self.state[module.weight] = state_dict
 
-            self.zero_grad()
             self.hpa_enabled = False
 
     return FlexiStateOptimizer
@@ -589,7 +592,7 @@ def replace_with_hpa(model: nn.Module, target_modules: List[str] = [""], set_ran
                     module.merge_weights()
                     hpa_type = HpaLinear if isinstance(module, HpaLinear) else HpaEmbedding
                     rank = set_rank_fn(module.rows, module.cols)
-                    eff_r = min(module.rows, module.cols) // 2 # Only apply HPA if memory cost with given rank is strictly less than full FT
+                    eff_r = min(module.rows, module.cols) // 2
 
                 else:
                     if isinstance(module, nn.Linear):
@@ -602,7 +605,7 @@ def replace_with_hpa(model: nn.Module, target_modules: List[str] = [""], set_ran
                         rank = set_rank_fn(module.embedding_dim, module.num_embeddings)
                         eff_r = min(module.embedding_dim, module.num_embeddings) // 2
 
-                if rank < eff_r:
+                if rank < eff_r: # Only apply HPA if memory cost under given rank < full FT
                     modules_to_replace.append((parent_module, child_name, module, hpa_type, rank))
 
     for parent_module, child_name, original_linear_module, hpa_type, rank in modules_to_replace:

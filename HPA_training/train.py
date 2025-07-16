@@ -1,5 +1,4 @@
 import torch
-from tqdm import trange
 from config import *
 import os
 import time
@@ -53,7 +52,6 @@ class HpaTrainer():
         self.model.to(self.device)
 
         # --- Training Arguments ---
-        # --- Training Arguments ---
         self.num_train_epochs = num_train_epochs
         self.warmup_steps = warmup_steps
         self.gradient_accumulation_steps = gradient_accumulation_steps
@@ -69,14 +67,14 @@ class HpaTrainer():
         else:
             if refresh_adapter_steps % gradient_accumulation_steps != 0:
                 raise ValueError("refresh_adapter_steps must be a multiple of gradient_accumulation_steps")
-            
+
             self.refresh_adapter_steps = refresh_adapter_steps
-        
+
         if rank_reduction_cycles is None:
             self.rank_reduction_steps = self.num_training_steps
         else:
             self.rank_reduction_steps = rank_reduction_cycles * refresh_adapter_steps
-        
+
         if first_rank_reduction_cycle is None:
             self.first_rank_reduction_step = self.rank_reduction_steps
         else:
@@ -122,7 +120,7 @@ class HpaTrainer():
                 logger.info(f"--- Refresh adapter at {self.global_step} ---")
                 rank_reduction_condition = (self.global_step >= self.first_rank_reduction_step) and \
                 (self.global_step - self.first_rank_reduction_step) % self.rank_reduction_steps == 0
-                
+
                 self.optimizer.merge_states()
                 for module in self.hpa_modules:
                     module.merge_weights()
@@ -138,12 +136,14 @@ class HpaTrainer():
                     elif self.refresh_type == "gradient":
                         module.reactivate_on_gradient(rank_reduction_condition)
                     else:
-                        pass 
+                        pass
 
                 self.optimizer.project_states()
+                self.optimizer.zero_grad()
 
             outputs = self.model(inputs)
             loss = self.criterion(outputs.logits, labels) # Extract logits
+            logger.info(f"Step {self.global_step} loss: {loss}")
             loss = loss / self.gradient_accumulation_steps
             loss.backward()
 
@@ -213,24 +213,24 @@ class HpaTrainer():
         self.model.train() # Set model back to training mode
         return avg_eval_loss, accuracy
 
-    # def _save_checkpoint(self, epoch):
-    #     checkpoint_path = os.path.join(self.output_dir, f"checkpoint_epoch_{epoch+1}.pt")
-    #     torch.save({
-    #         'epoch': epoch,
-    #         'global_step': self.global_step,
-    #         'model_state_dict': self.model.state_dict(),
-    #         'optimizer_state_dict': self.optimizer.state_dict(),
-    #         'lr_scheduler_state_dict': self.lr_scheduler.state_dict() if self.lr_scheduler else None,
-    #         # 'best_metric': self.best_metric, # If you implement early stopping
-    #     }, checkpoint_path)
-    #     logger.info(f"Checkpoint saved to {checkpoint_path}")
+    def _save_checkpoint(self, epoch):
+        checkpoint_path = os.path.join(self.output_dir, f"checkpoint_epoch_{epoch+1}.pt")
+        torch.save({
+            'epoch': epoch,
+            'global_step': self.global_step,
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'lr_scheduler_state_dict': self.lr_scheduler.state_dict() if self.lr_scheduler else None,
+            # 'best_metric': self.best_metric, # If you implement early stopping
+        }, checkpoint_path)
+        logger.info(f"Checkpoint saved to {checkpoint_path}")
 
     def train(self):
         logger.info("Starting training...")
         start_time = time.time()
 
         for epoch in range(self.num_train_epochs):
-            logger.info(f"--- Epoch {epoch + 1}/{self.num_train_epochs} ---")
+            logger.info(f"\n--- Epoch {epoch + 1}/{self.num_train_epochs} ---")
             self._train_epoch()
 
             # Evaluate after each epoch

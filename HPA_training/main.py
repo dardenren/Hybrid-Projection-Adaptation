@@ -16,7 +16,7 @@ from hpa import replace_with_hpa, make_flexi_optimizer
 def main():
     try:
         logger.info(f"Hyperparameters - Learning Rate: {LEARNING_RATE}, Initial Rank: {INITIAL_RANK}, "
-                    f"LoRA Alpha: {LORA_ALPHA}, LoRA Dropout: {LORA_DROPOUT}, Batch Size: {BATCH_SIZE}, "
+                    f"HPA Alpha: {HPA_ALPHA}, HPA Dropout: {HPA_DROPOUT}, Batch Size: {BATCH_SIZE}, "
                     f"Epochs: {EPOCHS}, Model: {MODEL_NAME}, Dataset: {DATASET_NAME}")
 
         logger.info(f"Initializing model: {MODEL_NAME}")
@@ -26,13 +26,18 @@ def main():
         train_dataset, test_dataset = load_and_preprocess_data(DATASET_NAME, MODEL_NAME)
 
         logger.info("Replacing target modules with HPA")
-        replace_with_hpa(model, ["attention", "pooler", "intermediate"], set_rank_fn=lambda m,n: INITIAL_RANK, mode="lora", hpa_dropout=LORA_DROPOUT, hpa_alpha=LORA_ALPHA)
+        replace_with_hpa(model, ["attention", "pooler", "intermediate"], set_rank_fn=lambda m,n: INITIAL_RANK, mode="svd", hpa_dropout=HPA_DROPOUT, hpa_alpha=HPA_ALPHA)
         
         model.to(DEVICE)
 
         logger.info("Initializing optimizer")
-        FS_AdamW = make_flexi_optimizer(torch.optim.AdamW, ["exp_avg", "exp_avg_sq"])
-        optimizer = FS_AdamW(
+
+        identity_fn = lambda x: x
+        sq_fn = lambda x: x*x
+        sqrt_fn = lambda x: torch.sqrt(x)
+        FsAdamW = make_flexi_optimizer(torch.optim.AdamW, {"exp_avg": (identity_fn, identity_fn), "exp_avg_sq": (sqrt_fn, sq_fn)})
+
+        optimizer = FsAdamW(
             model,
             model.named_parameters(), 
             lr=LEARNING_RATE
