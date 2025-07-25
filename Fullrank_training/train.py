@@ -1,8 +1,18 @@
+import torch
 import torch.nn as nn
 import torch.optim as optim
 from transformers import Trainer, TrainingArguments
 from config import BATCH_SIZE, EPOCHS, LEARNING_RATE, SEED
 from metrics import SystemMetricsCallback
+
+def compute_metrics(eval_pred):
+    predictions, labels = eval_pred
+    # Convert NumPy arrays to PyTorch Tensors
+    predictions = torch.tensor(predictions)
+    labels = torch.tensor(labels)
+    # Compute loss
+    loss = nn.CrossEntropyLoss()(predictions, labels)
+    return {"eval_loss": loss.item()}
 
 def setup_trainer(model, tokenizer, train_dataset, test_dataset):
     optimizer = optim.AdamW(
@@ -34,7 +44,7 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=test_dataset,
-        compute_metrics=nn.CrossEntropyLoss(),
+        compute_metrics=compute_metrics,
         optimizers=(optimizer, None),
         callbacks=[SystemMetricsCallback(log_dir=training_args.logging_dir, model=model, tokenizer=tokenizer)]
     )

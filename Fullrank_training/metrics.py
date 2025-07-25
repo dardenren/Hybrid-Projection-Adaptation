@@ -7,7 +7,7 @@ from transformers import TrainerCallback, TrainerState, TrainerControl, Training
 from torch.utils.tensorboard import SummaryWriter
 
 class SystemMetricsCallback(TrainerCallback):
-    def __init__(self, log_dir="logs", model=None, tokenizer=None, eval_batch_size=1):
+    def __init__(self, log_dir="./logs", model=None, tokenizer=None, eval_batch_size=1):
         self.writer = SummaryWriter(log_dir=log_dir)
         self.model = model
         self.tokenizer = tokenizer
@@ -27,6 +27,24 @@ class SystemMetricsCallback(TrainerCallback):
         if model is not None:
             self.trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
             self.writer.add_scalar('Model/Trainable_Parameters', self.trainable_params, 0)
+
+            # Log the model graph
+            try:
+                # Create a dummy input for the model (compatible with transformers)
+                if self.tokenizer is not None:
+                    dummy_input = self.tokenizer(
+                        "Sample text for graph visualization",
+                        return_tensors="pt",
+                        padding=True,
+                        truncation=True
+                    ).to(model.device)
+                    # Log the graph using the model and dummy input
+                    self.writer.add_graph(model, input_to_model=dummy_input)
+                    logger.info("Model graph logged to TensorBoard")
+                else:
+                    logger.info("Tokenizer not provided; skipping model graph logging")
+            except Exception as e:
+                logger.info(f"Failed to log model graph: {e}")
 
     def on_train_begin(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
         # Record start time for total training time

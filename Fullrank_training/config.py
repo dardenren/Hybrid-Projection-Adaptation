@@ -15,7 +15,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 logger = logging.getLogger("MobileBERT_Training")
 if not logger.handlers:  # Avoid reconfiguring if already set
     logger.setLevel(logging.INFO)
-    handler = RotatingFileHandler("output/training.log", maxBytes=1024*1024, backupCount=5)
+    handler = RotatingFileHandler("output/logger_training.log", maxBytes=1024*1024, backupCount=5)
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
