@@ -8,6 +8,12 @@ Galore_training/.venv/
 Fullrank_training/venv/
 Fullrank_training/.venv/
 
+# Logs
+LoRA_training/logs/
+HPA_training/logs/
+Galore_training/logs/
+Fullrank_training/logs/
+
 # Python cache files
 __pycache__/
 *.pyc
