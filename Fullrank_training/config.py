@@ -1,18 +1,29 @@
 import torch
 import logging
 from logging.handlers import RotatingFileHandler
+import argparse
+
+# ArgumentParser object
+class Config_Args:
+    args = None
+
+    @classmethod
+    def update_args(cls, args_obj):
+        cls.args = args_obj
+
+    @classmethod
+    def get_args(cls):
+        return cls.args
+
+
+
+args = None
 
 # Hyperparameters
-LEARNING_RATE = 1e-4
-BATCH_SIZE = 32
-EPOCHS = 4
 SEED = 888
-NUM_LABELS = 2  # Adjust based on task
-MODEL_NAME = "google/mobilebert-uncased"
-DATASET_NAME = "imdb"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-logger = logging.getLogger("MobileBERT_Training")
+logger = logging.getLogger("GLUE_Training")
 if not logger.handlers:  # Avoid reconfiguring if already set
     logger.setLevel(logging.INFO)
     handler = RotatingFileHandler("output/logger_training.log", maxBytes=1024*1024, backupCount=5)
@@ -22,13 +33,8 @@ if not logger.handlers:  # Avoid reconfiguring if already set
 
 
 __all__ = [
-    "BATCH_SIZE",
-    "DATASET_NAME",
+    "args",
     "DEVICE",
-    "EPOCHS",
-    "LEARNING_RATE",
-    "MODEL_NAME",
-    "NUM_LABELS",
     "SEED",
     "logger"
 ]
