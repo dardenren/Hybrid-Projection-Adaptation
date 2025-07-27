@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from transformers import Trainer, TrainingArguments
-from config import BATCH_SIZE, EPOCHS, LEARNING_RATE, SEED
+from config import SEED
+from config import Config_Args
 from metrics import SystemMetricsCallback
 
 def compute_metrics(eval_pred):
@@ -17,7 +18,7 @@ def compute_metrics(eval_pred):
 def setup_trainer(model, tokenizer, train_dataset, test_dataset):
     optimizer = optim.AdamW(
         model.parameters(),
-        lr=LEARNING_RATE,      
+        lr=Config_Args.args.lr,      
         betas=(0.9, 0.98),    
         eps=1e-7,             
         weight_decay=0.1,     
@@ -26,9 +27,9 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
 
     training_args = TrainingArguments(
         output_dir="./output",
-        num_train_epochs=EPOCHS,
-        per_device_train_batch_size=BATCH_SIZE,
-        learning_rate=LEARNING_RATE,
+        num_train_epochs=Config_Args.args.epochs,
+        per_device_train_batch_size=Config_Args.args.train_batch_size,
+        learning_rate=Config_Args.args.lr,
         seed=SEED,
         logging_dir="./logs",
         report_to="tensorboard",
