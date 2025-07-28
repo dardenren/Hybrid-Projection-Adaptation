@@ -6,6 +6,7 @@ from transformers import AutoModelForSequenceClassification, Trainer, TrainingAr
 from data import load_and_preprocess_data
 from train import setup_trainer
 from helper import TASK_TO_LABELS, TASK_TO_COLUMNS
+from eval import evaluate_model
 
 def main(args):
     try:
@@ -36,6 +37,8 @@ def main(args):
         save_path = "output/fine-tuned" + f"_{model_name_replaced}" + "_full-rank.pt" 
         torch.save(model.state_dict(), save_path)
 
+        evaluate_model(model, test_dataset)
+        
     except Exception as e:
         logger.error(f"Error in main: {str(e)}")
         raise 
