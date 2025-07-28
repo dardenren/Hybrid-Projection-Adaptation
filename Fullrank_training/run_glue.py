@@ -31,7 +31,9 @@ def main(args):
         trainer.train()
 
         model.eval()  
-        save_path = "output/fine_tuned" + f"_{args.model_name}" + "_full_rank.pt" 
+
+        model_name_replaced = args.model_name.replace("/", "-")
+        save_path = "output/fine-tuned" + f"_{model_name_replaced}" + "_full-rank.pt" 
         torch.save(model.state_dict(), save_path)
 
     except Exception as e:
