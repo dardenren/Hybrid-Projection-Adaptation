@@ -1,4 +1,6 @@
 # Virtual environment
+venv/
+.venv/
 LoRA_training/venv/
 LoRA_training/.venv/
 HPA_training/venv/
