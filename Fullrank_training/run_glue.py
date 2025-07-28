@@ -31,7 +31,11 @@ def main(args):
         trainer.train()
 
         model.eval()  
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> e754aaef509daef81af7a0c968b012e4696bf51e
         model_name_replaced = args.model_name.replace("/", "-")
         save_path = "output/fine-tuned" + f"_{model_name_replaced}" + "_full-rank.pt" 
         torch.save(model.state_dict(), save_path)
