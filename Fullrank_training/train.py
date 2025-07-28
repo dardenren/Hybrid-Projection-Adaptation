@@ -19,10 +19,10 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
     optimizer = optim.AdamW(
         model.parameters(),
         lr=Config_Args.args.lr,      
-        betas=(0.9, 0.98),    
-        eps=1e-7,             
-        weight_decay=0.1,     
-        amsgrad=False         
+        # betas=(0.9, 0.999),    
+        # eps=1e-8,             
+        # weight_decay=0.01,     
+        # amsgrad=False         
     )
 
     training_args = TrainingArguments(
@@ -36,8 +36,7 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
         logging_steps=100,  # Log every 100 steps
         logging_strategy="steps",
         save_strategy="no", # Set to "epoch" to save model after every epoch
-        eval_strategy="steps",
-        eval_steps=500,
+        eval_strategy="epoch",
     )
 
     trainer = Trainer(
