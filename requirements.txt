@@ -12,4 +12,4 @@ psutil
 pynvml
 tensorboard
 # tf-keras
-# scikit-learn
+scikit-learn
