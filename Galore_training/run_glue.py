@@ -6,14 +6,17 @@ from transformers import AutoModelForSequenceClassification, Trainer, TrainingAr
 from data import load_and_preprocess_data
 from train import setup_trainer
 from helper import TASK_TO_LABELS, TASK_TO_COLUMNS
-from eval import evaluate_model # type: ignore
+from eval import evaluate_model 
 
 def main(args):
     try:
         NUM_LABELS = TASK_TO_LABELS[args.task_name]
         logger.info(f"Hyperparameters - Learning Rate: {args.lr}, Batch Size: {args.train_batch_size}, "
-                    f"Epochs: {args.epochs}, Seed: {SEED}, Num Labels: {NUM_LABELS}, "
-                    f"Model: {args.model_name}, Dataset/Task: {args.task_name}, Device: {DEVICE}")
+                    f"Epochs: {args.epochs}, Seed: {SEED}, "
+                    f"Galore Rank: {RANK}, Update Projection Gap: {UPDATE_PROJ_GAP}, "
+                    f"Scale: {SCALE}, Projection Type: {PROJ_TYPE}, Optimizer: {OPTIM}, "
+                    f"Optimizer Target Modules: {OPTIM_TARGET_MODULES}, "
+                    f"Model: {args.model_name}, Dataset: {args.dataset_name}, Device: {DEVICE}")
 
         logger.info(f"Initializing model: {args.model_name}")
         model = AutoModelForSequenceClassification.from_pretrained(args.model_name, 
@@ -26,13 +29,14 @@ def main(args):
         
         # Setting up trainer
         logger.info("Setting up trainer")
-        trainer = setup_trainer(model, tokenizer, train_dataset, test_dataset)
+        trainer = setup_trainer(model, tokenizer, train_dataset=train_dataset, test_dataset=test_dataset)
         
         logger.info("Starting training")
         trainer.train()
 
         model.eval()  
-        
+        torch.save(model.state_dict(), "output/fine_tuned_bert_hpa.pt")
+
         model_name_replaced = args.model_name.replace("/", "-")
         save_path = "output/fine-tuned" + f"_{model_name_replaced}" + "_full-rank.pt" 
         torch.save(model.state_dict(), save_path)
