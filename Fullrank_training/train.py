@@ -30,7 +30,7 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
         num_train_epochs=Config_Args.args.epochs,
         per_device_train_batch_size=Config_Args.args.train_batch_size,
         learning_rate=Config_Args.args.lr,
-        seed=SEED,
+        seed=Config_Args.seed,
         logging_dir="./logs",
         report_to="tensorboard",
         logging_steps=100,  # Log every 100 steps

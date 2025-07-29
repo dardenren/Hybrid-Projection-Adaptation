@@ -20,7 +20,6 @@ class Config_Args:
 args = None
 
 # Hyperparameters
-SEED = 888
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 logger = logging.getLogger("GLUE_Training")
@@ -35,6 +34,5 @@ if not logger.handlers:  # Avoid reconfiguring if already set
 __all__ = [
     "args",
     "DEVICE",
-    "SEED",
     "logger"
 ]

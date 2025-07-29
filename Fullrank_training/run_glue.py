@@ -12,7 +12,7 @@ def main(args):
     try:
         NUM_LABELS = TASK_TO_LABELS[args.task_name]
         logger.info(f"Hyperparameters - Learning Rate: {args.lr}, Batch Size: {args.train_batch_size}, "
-                    f"Epochs: {args.epochs}, Seed: {SEED}, Num Labels: {NUM_LABELS}, "
+                    f"Epochs: {args.epochs}, Seed: {args.seed}, Num Labels: {NUM_LABELS}, "
                     f"Model: {args.model_name}, Dataset/Task: {args.task_name}, Device: {DEVICE}")
 
         logger.info(f"Initializing model: {args.model_name}")
@@ -49,9 +49,10 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_name", required=True, help="Dataset name (e.g., nyu-mll/glue)")
     parser.add_argument("--task_name", required=True, help="GLUE task name (e.g., cola, mnli)")
     parser.add_argument("--model_name", required=True, help="Model name (e.g., bert-base-uncased)")
-    parser.add_argument("--lr", type=float, default=2e-5, help="Learning rate")
-    parser.add_argument("--train_batch_size", type=int, default=16, help="Batch size for training")
-    parser.add_argument("--epochs", type=int, default=3, help="Number of training epochs")
+    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
+    parser.add_argument("--train_batch_size", type=int, default=32, help="Batch size for training")
+    parser.add_argument("--epochs", type=int, default=4, help="Number of training epochs")
+    parser.add_argument("--seed", type=int, default=1, help="Seed for randomization")
     args = parser.parse_args()
     Config_Args.update_args(args)
     main(args)
