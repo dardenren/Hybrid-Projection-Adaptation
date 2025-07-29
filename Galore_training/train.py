@@ -2,8 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from transformers import Trainer, TrainingArguments
-from config import Config_Args
-from config import OPTIM, OPTIM_TARGET_MODULES, PROJ_TYPE, RANK, SCALE, SEED, UPDATE_PROJ_GAP
+from config import Config_Args, OPTIM, OPTIM_TARGET_MODULES
 from metrics import SystemMetricsCallback
 
 def compute_metrics(eval_pred):
@@ -20,9 +19,9 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
         num_train_epochs=Config_Args.args.epochs,
         per_device_train_batch_size=Config_Args.args.train_batch_size,
         learning_rate=Config_Args.args.lr,
-        seed=SEED,
+        seed=Config_Args.args.seed,
         optim=OPTIM,
-        optim_args = f"rank={RANK}, update_proj_gap={UPDATE_PROJ_GAP}, scale={SCALE}, prof_type={PROJ_TYPE}",  # Pass GaLore hyperparameters
+        optim_args = f"rank={Config_Args.args.rank}, update_proj_gap={Config_Args.args.proj_freq}, scale={Config_Args.args.scale}, prof_type={Config_Args.proj_type}",  # Pass GaLore hyperparameters
         optim_target_modules=OPTIM_TARGET_MODULES,
         # GaLore-specific parameters
         # These are passed to the optimizer via TrainingArguments

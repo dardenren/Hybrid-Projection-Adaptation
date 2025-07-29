@@ -12,9 +12,9 @@ def main(args):
     try:
         NUM_LABELS = TASK_TO_LABELS[args.task_name]
         logger.info(f"Hyperparameters - Learning Rate: {args.lr}, Batch Size: {args.train_batch_size}, "
-                    f"Epochs: {args.epochs}, Seed: {SEED}, "
-                    f"Galore Rank: {RANK}, Update Projection Gap: {UPDATE_PROJ_GAP}, "
-                    f"Scale: {SCALE}, Projection Type: {PROJ_TYPE}, Optimizer: {OPTIM}, "
+                    f"Epochs: {args.epochs}, Seed: {args.seed}, "
+                    f"Galore Rank: {args.rank}, Update Projection Gap: {args.proj_freq}, "
+                    f"Scale: {args.scale}, Projection Type: {args.proj_type}, Optimizer: {OPTIM}, "
                     f"Optimizer Target Modules: {OPTIM_TARGET_MODULES}, "
                     f"Model: {args.model_name}, Dataset: {args.dataset_name}, Device: {DEVICE}")
 
@@ -33,9 +33,6 @@ def main(args):
         
         logger.info("Starting training")
         trainer.train()
-
-        model.eval()  
-        torch.save(model.state_dict(), "output/fine_tuned_bert_hpa.pt")
 
         model_name_replaced = args.model_name.replace("/", "-")
         save_path = "output/fine-tuned" + f"_{model_name_replaced}" + "_full-rank.pt" 
@@ -56,6 +53,11 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=2e-5, help="Learning rate")
     parser.add_argument("--train_batch_size", type=int, default=16, help="Batch size for training")
     parser.add_argument("--epochs", type=int, default=3, help="Number of training epochs")
+    parser.add_argument("--seed", type=int, default=1, help="Seed for randomization")
+    parser.add_argument("--rank", type=int, default=8, help="Rank for low rank gradient/adapter")
+    parser.add_argument("--proj_freq", type=int, default=200, help="Steps per update of projection matrix")
+    parser.add_argument("--scale", type=float, default=1.0, help="Scale for low rank gradient/adapter")
+    parser.add_argument("--proj_type", type=str, default="std", help="Method to obtain projection vectors")
     args = parser.parse_args()
     Config_Args.update_args(args)
     main(args)
