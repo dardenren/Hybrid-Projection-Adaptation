@@ -11,12 +11,11 @@ from eval import evaluate_model
 def main(args):
     try:
         NUM_LABELS = TASK_TO_LABELS[args.task_name]
-        logger.info(f"Hyperparameters - Learning Rate: {args.lr}, Batch Size: {args.train_batch_size}, "
-                    f"Epochs: {args.epochs}, Seed: {args.seed}, "
-                    f"Galore Rank: {args.rank}, Update Projection Gap: {args.proj_freq}, "
-                    f"Scale: {args.scale}, Projection Type: {args.proj_type}, Optimizer: {OPTIM}, "
-                    f"Optimizer Target Modules: {OPTIM_TARGET_MODULES}, "
-                    f"Model: {args.model_name}, Dataset: {args.dataset_name}, Device: {DEVICE}")
+        logger.info(f"Hyperparameters - LoRA Rank: {args.rank}, LoRA Alpha: {args.scale}, "
+                    f"Merge Weights: {args.merge_weights}, Learning Rate: {args.kr}, "
+                    f"Batch Size: {args.train_batch_size}, Epochs: {args.epochs}, "
+                    f"Model: {args.model_name}, Dataset: {args.dataset_name}, "
+                    f"SEED Size: {args.seed}, Device: {DEVICE}")
 
         logger.info(f"Initializing model: {args.model_name}")
         model = AutoModelForSequenceClassification.from_pretrained(args.model_name, 
