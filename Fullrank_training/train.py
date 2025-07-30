@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from transformers import Trainer, TrainingArguments
-from config import SEED
 from config import Config_Args
 from metrics import SystemMetricsCallback
 
@@ -30,7 +29,7 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
         num_train_epochs=Config_Args.args.epochs,
         per_device_train_batch_size=Config_Args.args.train_batch_size,
         learning_rate=Config_Args.args.lr,
-        seed=Config_Args.seed,
+        seed=Config_Args.args.seed,
         logging_dir="./logs",
         report_to="tensorboard",
         logging_steps=100,  # Log every 100 steps
