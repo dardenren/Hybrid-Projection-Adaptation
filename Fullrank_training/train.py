@@ -23,14 +23,18 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
         # weight_decay=0.01,     
         # amsgrad=False         
     )
+    output_dir_string = "./output" + f"_{Config_Args.args.task_name}"
+    logging_dir_string = "./logs" + f"_{Config_Args.args.task_name}"
 
     training_args = TrainingArguments(
-        output_dir="./output",
+        # output_dir="./output",
+        output_dir=output_dir_string,
         num_train_epochs=Config_Args.args.epochs,
         per_device_train_batch_size=Config_Args.args.train_batch_size,
         learning_rate=Config_Args.args.lr,
         seed=Config_Args.args.seed,
-        logging_dir="./logs",
+        # logging_dir="./logs",
+        logging_dir=logging_dir_string,
         report_to="tensorboard",
         logging_steps=100,  # Log every 100 steps
         logging_strategy="steps",
