@@ -13,3 +13,4 @@ pynvml
 tensorboard
 # tf-keras
 scikit-learn
+galore-torch
