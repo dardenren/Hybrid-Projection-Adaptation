@@ -97,11 +97,11 @@ pip install --no-cache-dir -r requirements.txt
 pip install --no-cache-dir tf-keras scikit-learn
 pip uninstall -y tensorflow
 
-# Change to the appropriate training directory
-cd "$training_dir" || { echo "Error: Cannot change to directory $training_dir"; exit 1; }
-
 # Activate virtual environment
 source ./venv/bin/activate
+
+# Change to the appropriate training directory
+cd "$training_dir" || { echo "Error: Cannot change to directory $training_dir"; exit 1; }
 
 # Ensure project directory is in PYTHONPATH
 export PYTHONPATH=$PYTHONPATH:$SLURM_SUBMIT_DIR/$training_dir
