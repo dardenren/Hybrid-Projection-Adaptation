@@ -1,10 +1,11 @@
 # Data loading & preprocessing
 import argparse
+import torch
 from datasets import load_dataset
 from transformers import AutoTokenizer
 from config import logger, Config_Args
 from helper import TASK_TO_COLUMNS, TASK_TO_LABELS
-# from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader
 
 # def load_and_preprocess_data(dataset_name="nyu-mll/glue", model_name="google/mobilebert-uncased", columns=):
 #     logger.info(f"Loading and preprocessing {dataset_name} dataset")
@@ -24,11 +25,15 @@ from helper import TASK_TO_COLUMNS, TASK_TO_LABELS
 
 def load_and_preprocess_data(args: argparse.ArgumentParser):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    NUM_LABELS = TASK_TO_LABELS[args.task_name]
     def preprocess_fn(examples):
         input_columns = TASK_TO_COLUMNS[args.task_name]
+        print(f"input_columns: {input_columns}")
+        if input_columns == None:
+            input_columns = 2
         if len(input_columns) == 1:
             # Single-sentence task
-            preprocessed_tokenizer = tokenizer(
+            preprocessed = tokenizer(
                 examples[input_columns[0]],
                 # padding=True,
                 padding="max_length",
@@ -39,7 +44,7 @@ def load_and_preprocess_data(args: argparse.ArgumentParser):
             )
         else:
             # Sentence-pair task
-            preprocessed_tokenizer = tokenizer(
+            preprocessed = tokenizer(
                 examples[input_columns[0]],
                 examples[input_columns[1]],
                 # padding=True,
@@ -50,8 +55,7 @@ def load_and_preprocess_data(args: argparse.ArgumentParser):
                 # max_length=tokenizer.model_max_length
             )
 
-        logger.debug(f"Sample input_ids length: {len(preprocessed_tokenizer['input_ids'][0])}")
-        return preprocessed_tokenizer
+        return preprocessed
     
     # Tokenize dataset
     logger.info(f"Loading and preprocessing {args.dataset_name} dataset")
@@ -73,11 +77,11 @@ def load_and_preprocess_data(args: argparse.ArgumentParser):
     test_dataset = encoded_dataset["test"]
     
     task_name_string = "None" if args.task_name == None else args.task_name
-    for split, ds in [("train", train_dataset), ("test", test_dataset)]:
-            lengths = [len(item["input_ids"]) for item in ds]
-            if len(set(lengths)) > 1:
-                logger.warning(f"Inconsistent sequence lengths in {split} split: {set(lengths)}")
 
     logger.info(f"{args.dataset_name} Dataset for {task_name_string} loaded and preprocessed successfully")
     # return train_dataset, validation_dataset, test_dataset, tokenizer
+
+    train_dataset = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    # validation_dataset = DataLoader(validation_dataset, batch_size=32, shuffle=True)
+    test_dataset = DataLoader(test_dataset, batch_size=32, shuffle=True)
     return train_dataset, test_dataset, tokenizer
