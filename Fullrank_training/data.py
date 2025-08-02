@@ -39,7 +39,7 @@ def load_and_preprocess_data(args: argparse.ArgumentParser):
                 padding="max_length",
                 truncation=True,
                 return_tensors="pt",
-                max_length=512
+                max_length=args.max_seq_length
                 # max_length=tokenizer.model_max_length
             )
         else:
@@ -51,7 +51,7 @@ def load_and_preprocess_data(args: argparse.ArgumentParser):
                 padding="max_length",
                 truncation=True,
                 return_tensors="pt",
-                max_length=512
+                max_length=args.max_seq_length
                 # max_length=tokenizer.model_max_length
             )
 

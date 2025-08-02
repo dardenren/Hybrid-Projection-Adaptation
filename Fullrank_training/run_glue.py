@@ -64,6 +64,7 @@ if __name__ == "__main__":
     parser.add_argument("--train_batch_size", type=int, default=32, help="Batch size for training")
     parser.add_argument("--epochs", type=int, default=4, help="Number of training epochs")
     parser.add_argument("--seed", type=int, default=1, help="Seed for randomization")
+    parser.add_argument("--max_seq_length", type=int, default=512, help="Number of tokens converted into embedding")
     args = parser.parse_args()
     Config_Args.update_args(args)
     main(args)
