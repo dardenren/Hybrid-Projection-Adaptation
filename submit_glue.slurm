@@ -21,6 +21,7 @@ lr=""
 train_batch_size=""
 epochs=""
 training_type=""
+max_seq_length=""
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
@@ -121,4 +122,5 @@ python run_glue.py \
     --model_name "$model_name" \
     --lr "$lr" \
     --train_batch_size "$train_batch_size" \
-    --epochs "$epochs"
+    --epochs "$epochs" \
+    --max_seq_length "$max_seq_length"
