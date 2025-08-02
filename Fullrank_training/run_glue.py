@@ -22,7 +22,11 @@ def main(args):
         # Load and preprocess dataset
         task_name_string = "None" if args.task_name == None else args.task_name
         logger.info(f"Retrieving dataset: {args.dataset_name}, Task: {task_name_string}")
-        train_dataset, test_dataset, tokenizer = load_and_preprocess_data(args)
+        if args.task_name == "mnli":
+            # test_dataset is the validation_matched_dataset in mnli
+            train_dataset, test_dataset, validation_mismatched_dataset, tokenizer = load_and_preprocess_data(args)
+        else:
+            train_dataset, test_dataset, tokenizer = load_and_preprocess_data(args)
         
         # Setting up trainer
         logger.info("Setting up trainer")
@@ -36,8 +40,15 @@ def main(args):
         model_name_replaced = args.model_name.replace("/", "-")
         save_path = "output/fine-tuned" + f"_{model_name_replaced}" + "_full-rank.pt" 
         torch.save(model.state_dict(), save_path)
+        
+        if args.task_name == "mnli":
+            print("Matched results: \n")
+            evaluate_model(model, test_dataset)
 
-        evaluate_model(model, test_dataset)
+            print("Mismatched results: \n")
+            evaluate_model(model, validation_mismatched_dataset)
+        else:
+            evaluate_model(model, test_dataset)
         
     except Exception as e:
         logger.error(f"Error in main: {str(e)}")

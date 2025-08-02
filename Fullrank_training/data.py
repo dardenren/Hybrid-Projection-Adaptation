@@ -1,7 +1,7 @@
 # Data loading & preprocessing
 import argparse
 import torch
-from datasets import load_dataset
+from datasets import load_dataset, DatasetDict
 from transformers import AutoTokenizer
 from config import logger, Config_Args
 from helper import TASK_TO_COLUMNS, TASK_TO_LABELS
@@ -60,9 +60,16 @@ def load_and_preprocess_data(args: argparse.ArgumentParser):
     # Tokenize dataset
     logger.info(f"Loading and preprocessing {args.dataset_name} dataset")
     if not (args.task_name == None):
-        dataset = load_dataset(args.dataset_name, args.task_name)
+        if args.task_name == "mnli":
+            splits = ["train", "validation_matched", "validation_mismatched"]
+            dataset = load_dataset(args.dataset_name, args.task_name, split=splits)
+        else:
+            splits = ["train","validation"]
+            dataset = load_dataset(args.dataset_name, args.task_name, split=splits)
     else:
         dataset = load_dataset(args.dataset_name)
+
+    dataset = DatasetDict({split: ds for split, ds in zip(splits, dataset)})
         
 
     encoded_dataset = dataset.map(preprocess_fn, batched=True)
@@ -73,15 +80,23 @@ def load_and_preprocess_data(args: argparse.ArgumentParser):
     
     # Get train and validation splits
     train_dataset = encoded_dataset["train"]
-    # validation_dataset = encoded_dataset["validation"]
-    test_dataset = encoded_dataset["test"]
+    # train_dataset = DataLoader(train_dataset, batch_size=32, shuffle=True)
+
+    if args.task_name == "mnli":
+        validation_matched_dataset = encoded_dataset["validation_matched"]
+        validation_mismatched_dataset = encoded_dataset["validation_mismatched"]
+
+        validation_matched_dataset = DataLoader(validation_matched_dataset, batch_size=32, shuffle=True)
+        validation_mismatched_dataset = DataLoader(validation_mismatched_dataset, batch_size=32, shuffle=True)
+    else:
+        test_dataset = encoded_dataset["validation"] # Since glue test dataset does not have labels
+        test_dataset = DataLoader(test_dataset, batch_size=32, shuffle=True)
     
     task_name_string = "None" if args.task_name == None else args.task_name
 
     logger.info(f"{args.dataset_name} Dataset for {task_name_string} loaded and preprocessed successfully")
-    # return train_dataset, validation_dataset, test_dataset, tokenizer
 
-    train_dataset = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    # validation_dataset = DataLoader(validation_dataset, batch_size=32, shuffle=True)
-    test_dataset = DataLoader(test_dataset, batch_size=32, shuffle=True)
-    return train_dataset, test_dataset, tokenizer
+    if args.task_name == "mnli":
+        return train_dataset, validation_matched_dataset, validation_mismatched_dataset, tokenizer
+    else:
+        return train_dataset, test_dataset, tokenizer
