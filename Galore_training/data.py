@@ -29,8 +29,6 @@ def load_and_preprocess_data(args: argparse.ArgumentParser):
     def preprocess_fn(examples):
         input_columns = TASK_TO_COLUMNS[args.task_name]
         print(f"input_columns: {input_columns}")
-        if input_columns == None:
-            input_columns = 2
         if len(input_columns) == 1:
             # Single-sentence task
             preprocessed = tokenizer(
