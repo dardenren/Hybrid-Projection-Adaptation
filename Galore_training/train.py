@@ -28,7 +28,7 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
         lr_scheduler_type="linear",
         seed=Config_Args.args.seed,
         optim=OPTIM,
-        optim_args = f"rank={Config_Args.args.rank}, update_proj_gap={Config_Args.args.proj_freq}, scale={Config_Args.args.scale}, prof_type={Config_Args.args.proj_type}",  # Pass GaLore hyperparameters
+        optim_args = f"rank={Config_Args.args.rank}, update_proj_gap={Config_Args.args.proj_freq}, scale={Config_Args.args.scale}, proj_type={Config_Args.args.proj_type}",  # Pass GaLore hyperparameters
         optim_target_modules=OPTIM_TARGET_MODULES,
         # GaLore-specific parameters
         # These are passed to the optimizer via TrainingArguments
