@@ -22,6 +22,7 @@ args = None
 #Galore hyperparameters
 OPTIM = "galore_adamw"
 OPTIM_TARGET_MODULES = ["attention", "pooler", "intermediate"] 
+# ["query", "value", "key", "intermediate.dense", "output.dense"]
 # ["attn", "mlp"]
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
