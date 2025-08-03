@@ -49,7 +49,7 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=test_dataset,
-        compute_metrics=nn.CrossEntropyLoss(),
+        compute_metrics=compute_metrics,
         optimizers=(optimizer, None),
         callbacks=[SystemMetricsCallback(log_dir=training_args.logging_dir, model=model, tokenizer=tokenizer)]
     )
