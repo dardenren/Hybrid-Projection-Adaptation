@@ -86,11 +86,12 @@ def load_and_preprocess_data(args: argparse.ArgumentParser):
         validation_matched_dataset = encoded_dataset["validation_matched"]
         validation_mismatched_dataset = encoded_dataset["validation_mismatched"]
 
-        validation_matched_dataset = DataLoader(validation_matched_dataset, batch_size=32, shuffle=True)
-        validation_mismatched_dataset = DataLoader(validation_mismatched_dataset, batch_size=32, shuffle=True)
+        
+        # validation_matched_dataset = DataLoader(validation_matched_dataset, batch_size=32, shuffle=True)
+        # validation_mismatched_dataset = DataLoader(validation_mismatched_dataset, batch_size=32, shuffle=True)
     else:
         test_dataset = encoded_dataset["validation"] # Since glue test dataset does not have labels
-        test_dataset = DataLoader(test_dataset, batch_size=32, shuffle=True)
+        # test_dataset = DataLoader(test_dataset, batch_size=32, shuffle=True)
     
     task_name_string = "None" if args.task_name == None else args.task_name
 
