@@ -1,8 +1,10 @@
 import torch
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support # type: ignore
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from config import logger
+from torch.utils.data import DataLoader
 
 def evaluate_model(model, test_dataset):
+    test_dataset = DataLoader(test_dataset, batch_size=32, shuffle=True)
     model.eval()
     device = "cuda" if torch.cuda.is_available() else "cpu"
 

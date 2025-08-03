@@ -25,11 +25,15 @@ def main(args):
         # Load and preprocess dataset
         task_name_string = "None" if args.task_name == None else args.task_name
         logger.info(f"Retrieving dataset: {args.dataset_name}, Task: {task_name_string}")
-        train_dataset, test_dataset, tokenizer = load_and_preprocess_data(args)
+        if args.task_name == "mnli":
+            # test_dataset is the validation_matched_dataset in mnli
+            train_dataset, test_dataset, validation_mismatched_dataset, tokenizer = load_and_preprocess_data(args)
+        else:
+            train_dataset, test_dataset, tokenizer = load_and_preprocess_data(args)
         
         # Setting up trainer
         logger.info("Setting up trainer")
-        trainer = setup_trainer(model, tokenizer, train_dataset=train_dataset, test_dataset=test_dataset)
+        trainer = setup_trainer(model, tokenizer, train_dataset, test_dataset)
         
         logger.info("Starting training")
         trainer.train()
@@ -38,7 +42,14 @@ def main(args):
         save_path = "output/fine-tuned" + f"_{model_name_replaced}" + "_full-rank.pt" 
         torch.save(model.state_dict(), save_path)
 
-        evaluate_model(model, test_dataset)
+        if args.task_name == "mnli":
+            print("Matched results: \n")
+            evaluate_model(model, test_dataset)
+
+            print("Mismatched results: \n")
+            evaluate_model(model, validation_mismatched_dataset)
+        else:
+            evaluate_model(model, test_dataset)
 
     except Exception as e:
         logger.error(f"Error in main: {str(e)}")
@@ -58,6 +69,7 @@ if __name__ == "__main__":
     parser.add_argument("--proj_freq", type=int, default=200, help="Steps per update of projection matrix")
     parser.add_argument("--scale", type=float, default=1.0, help="Scale for low rank gradient/adapter e.g. LoRA alpha")
     parser.add_argument("--proj_type", type=str, default="std", help="Method to obtain projection vectors")
+    parser.add_argument("--max_seq_length", type=int, default=512, help="Number of tokens converted into embedding")
     args = parser.parse_args()
     Config_Args.update_args(args)
     main(args)
