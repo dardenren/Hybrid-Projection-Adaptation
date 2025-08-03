@@ -22,6 +22,11 @@ train_batch_size=""
 epochs=""
 training_type=""
 max_seq_length=""
+rank=""
+proj_freq=""
+scale=""
+proj_type=""
+
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
@@ -56,6 +61,22 @@ while [[ $# -gt 0 ]]; do
             ;;
         --max_seq_length)
             max_seq_length="$2"
+            shift 2
+            ;;
+        --rank)
+            rank="$2"
+            shift 2
+            ;;
+        --proj_freq)
+            proj_freq="$2"
+            shift 2
+            ;;
+        --scale)
+            scale="$2"
+            shift 2
+            ;;
+        --proj_type)
+            proj_type="$2"
             shift 2
             ;;
         *)
@@ -97,10 +118,10 @@ module load python/3.10.12
 module load cuda/11.2
 
 # Install dependencies if not already installed
-pip install --no-cache-dir -r requirements.txt
+# pip install --no-cache-dir -r requirements.txt
 
-pip install --no-cache-dir tf-keras scikit-learn
-pip uninstall -y tensorflow
+# pip install --no-cache-dir tf-keras scikit-learn
+# pip uninstall -y tensorflow
 
 # Activate virtual environment
 source ./venv/bin/activate
@@ -116,11 +137,19 @@ export PYTHONUNBUFFERED=1
 
 
 # Run the GLUE task
-python run_glue.py \
-    --dataset_name "$dataset_name" \
-    --task_name "$task_name" \
-    --model_name "$model_name" \
-    --lr "$lr" \
-    --train_batch_size "$train_batch_size" \
-    --epochs "$epochs" \
-    --max_seq_length "$max_seq_length"
+cmd="python run_glue.py \
+    --dataset_name \"$dataset_name\" \
+    --task_name \"$task_name\" \
+    --model_name \"$model_name\" \
+    --lr \"$lr\" \
+    --train_batch_size \"$train_batch_size\" \
+    --epochs \"$epochs\" \
+    --max_seq_length \"$max_seq_length\" "
+
+# Optional flags
+[ -n "$rank" ] && cmd="$cmd --rank \"$rank\""
+[ -n "$proj_freq" ] && cmd="$cmd --proj_freq \"$proj_freq\""
+[ -n "$scale" ] && cmd="$cmd --scale \"$scale\""
+[ -n "$proj_type" ] && cmd="$cmd --proj_type \"$proj_type\""
+
+eval "$cmd"
