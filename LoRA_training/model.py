@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 from lora import *
-from config import logger, MODEL_NAME
+from config import logger, Config_Args
+from helper import TASK_TO_LABELS
 
 from transformers import AutoModelForSequenceClassification
 
@@ -18,13 +19,13 @@ def set_module(model, module_name, new_module):
     setattr(current_module, last_part, new_module)
 
 
-def load_model(model_name=MODEL_NAME, r=4, lora_alpha=16, merge_weights=True, linear=True, embedding=True):
+def load_model(model_name, r, lora_alpha, merge_weights=True, linear=True, embedding=True):
     """
     linear : bool -> Option to change Linear layer to LoRALinear
     embedding : bool -> Option to change Embedding layer to LoRAEmbedding
     """
-    logger.info(f"Initializing model: {model_name}")
-    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2) 
+    logger.info(f"Initializing model: {Config_Args.args.model_name}")
+    model = AutoModelForSequenceClassification.from_pretrained(Config_Args.args.model_name, num_labels=TASK_TO_LABELS[Config_Args.args.task_name])                                                             
     logger.info("Model initialized")
     if not linear and not embedding:
         return model

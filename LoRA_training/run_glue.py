@@ -7,19 +7,27 @@ from data import load_and_preprocess_data
 from train import setup_trainer
 from helper import TASK_TO_LABELS, TASK_TO_COLUMNS
 from eval import evaluate_model 
+from model import load_model
+from lora import mark_only_lora_as_trainable, lora_state_dict
 
 def main(args):
     try:
         NUM_LABELS = TASK_TO_LABELS[args.task_name]
         logger.info(f"Hyperparameters - LoRA Rank: {args.rank}, LoRA Alpha: {args.scale}, "
-                    f"Merge Weights: {args.merge_weights}, Learning Rate: {args.kr}, "
+                    f"Merge Weights: {args.merge_weights}, Learning Rate: {args.lr}, "
                     f"Batch Size: {args.train_batch_size}, Epochs: {args.epochs}, "
                     f"Model: {args.model_name}, Dataset: {args.dataset_name}, "
                     f"SEED Size: {args.seed}, Device: {DEVICE}")
 
         logger.info(f"Initializing model: {args.model_name}")
-        model = AutoModelForSequenceClassification.from_pretrained(args.model_name, 
-                                                                   num_labels=NUM_LABELS)
+        model = load_model(model_name=args.model_name, r=args.rank, lora_alpha=args.scale, 
+                        merge_weights=False, linear=True, embedding=True)
+        
+        # Mark only LoRA parameters as trainable
+        mark_only_lora_as_trainable(model)
+
+        model.to(DEVICE)
+
     
         # Load and preprocess dataset
         task_name_string = "None" if args.task_name == None else args.task_name
@@ -33,8 +41,16 @@ def main(args):
         logger.info("Starting training")
         trainer.train()
 
+        if args.merge_weights:
+            model.weight.data += (model.lora_B @ model.lora_A).transpose(0, 1) * model.scaling
+            model.merged = True
+
+        model.eval()
+        
         model_name_replaced = args.model_name.replace("/", "-")
         save_path = "output/fine-tuned" + f"_{model_name_replaced}" + "_full-rank.pt" 
+        lora_params = lora_state_dict(model)
+        torch.save(lora_params, f"output/lora_params_{model_name_replaced}.pt")
         torch.save(model.state_dict(), save_path)
 
         evaluate_model(model, test_dataset)
@@ -57,6 +73,7 @@ if __name__ == "__main__":
     parser.add_argument("--proj_freq", type=int, default=200, help="Steps per update of projection matrix")
     parser.add_argument("--scale", type=float, default=1.0, help="Scale for low rank gradient/adapter")
     parser.add_argument("--proj_type", type=str, default="std", help="Method to obtain projection vectors")
+    parser.add_argument("--max_seq_length", type=int, default=512, help="Number of tokens converted into embedding")
     parser.add_argument("--merge_weights", type=bool, default=True, help="Option to merge LoRA matrices with weight matrices during inference")
     args = parser.parse_args()
     Config_Args.update_args(args)
