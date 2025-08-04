@@ -26,6 +26,10 @@ rank=""
 proj_freq=""
 scale=""
 proj_type=""
+hpa_mode=""
+proj_direction=""
+hpa_dropout=""
+merge_weights=""
 
 
 # Parse command-line arguments
@@ -77,6 +81,22 @@ while [[ $# -gt 0 ]]; do
             ;;
         --proj_type)
             proj_type="$2"
+            shift 2
+            ;;
+        --hpa_mode)
+            hpa_mode="$2"
+            shift 2
+            ;;
+        --proj_direction)
+            proj_direction="$2"
+            shift 2
+            ;;
+        --hpa_dropout)
+            hpa_dropout="$2"
+            shift 2
+            ;;
+        --merge_weights)
+            merge_weights="$2"
             shift 2
             ;;
         *)
@@ -151,5 +171,9 @@ cmd="python run_glue.py \
 [ -n "$proj_freq" ] && cmd="$cmd --proj_freq \"$proj_freq\""
 [ -n "$scale" ] && cmd="$cmd --scale \"$scale\""
 [ -n "$proj_type" ] && cmd="$cmd --proj_type \"$proj_type\""
+[ -n "$hpa_mode" ] && cmd="$cmd --hpa_mode \"$hpa_mode\""
+[ -n "$proj_direction" ] && cmd="$cmd --proj_direction \"$proj_direction\""
+[ -n "$hpa_dropout" ] && cmd="$cmd --hpa_dropout \"$hpa_dropout\""
+[ -n "$merge_weights" ] && cmd="$cmd --merge_weights \"$merge_weights\""
 
 eval "$cmd"
