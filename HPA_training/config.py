@@ -1,18 +1,27 @@
 import torch
 import logging
 from logging.handlers import RotatingFileHandler
+import argparse
+
+# ArgumentParser object
+class Config_Args:
+    args = None
+
+    @classmethod
+    def update_args(cls, args_obj):
+        cls.args = args_obj
+
+    @classmethod
+    def get_args(cls):
+        return cls.args
+
+
+
+args = None
 
 # Hyperparameters
-LEARNING_RATE = 1e-4
-INITIAL_RANK = 8
-HPA_ALPHA = 16
-HPA_DROPOUT = 0
 
-BATCH_SIZE = 32
-EPOCHS = 4
-
-MODEL_NAME = "google/mobilebert-uncased"
-DATASET_NAME = "imdb"
+OPTIM_TARGET_MODULES = ["attention", "pooler", "intermediate"] 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 logger = logging.getLogger("MobileBERT_Training")
@@ -24,5 +33,10 @@ if not logger.handlers:  # Avoid reconfiguring if already set
     logger.addHandler(handler)
 
 
-__all__ = ["logger", "LEARNING_RATE", "INITIAL_RANK", "HPA_ALPHA", "HPA_DROPOUT", "BATCH_SIZE", "EPOCHS", "MODEL_NAME", "DATASET_NAME", "DEVICE"]
+__all__ = [
+    "DEVICE",
+    # "OPTIM",
+    "OPTIM_TARGET_MODULES",
+    "logger"
+]
 
