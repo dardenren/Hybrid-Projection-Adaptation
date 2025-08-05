@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from transformers import Trainer, TrainingArguments
-from config import Config_Args, OPTIM, OPTIM_TARGET_MODULES, DEVICE, logger
+from config import Config_Args, OPTIM_TARGET_MODULES, DEVICE, logger
 from metrics import SystemMetricsCallback
 from hpa import make_flexi_optimizer
 from trainer import HpaTrainer
@@ -31,44 +31,40 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
         lr=Config_Args.args.lr
     )
 
-    training_args = TrainingArguments(
+    print(type(train_dataset))
+    total_steps = int((len(train_dataset) / 32) * Config_Args.args.epochs)
+    warmup_ratio = 0.1
+    warmup_steps = int(total_steps * warmup_ratio)
+    trainer = HpaTrainer(
+            model=model,
+            optimizer=optimizer,
+            device = None, 
+            criterion=torch.nn.CrossEntropyLoss(),
             output_dir=output_dir_string,
             logging_dir=logging_dir_string,
-            optimizer=optimizer,
-            criterion=torch.nn.CrossEntropyLoss(),
             # learning_rate=Config_Args.args.lr,
-#            eval_dataset=test_dataset,
+            train_dataset=train_dataset,
+            eval_dataset=test_dataset,
             train_batch_size=Config_Args.args.train_batch_size,
             eval_batch_size=Config_Args.args.train_batch_size,
             num_train_epochs=Config_Args.args.epochs,
-            warmup_ratio = 0.1,
-            lr_scheduler_type="linear",
-            # max_grad_norm = 1.0, 
-            seed=Config_Args.args.seed, 
             logging_steps = 100,
-            logging_strategy="steps",
-            report_to="tensorboard",
-            save_strategy="no", # Set to "epoch" to save model after every epoch
-            eval_strategy="epoch",
-            device = None, 
+            warmup_steps = warmup_steps,
+            # max_grad_norm = 1.0, 
 
             # HPA hyperparameters
-            warmup_steps = 0,
             gradient_accumulation_steps = 1, 
             refresh_adapter_steps = Config_Args.args.proj_freq, 
             refresh_type = "gradient",
             rank_reduction_cycles = None,
             first_rank_reduction_cycle = None,
-    )
 
-    trainer = HpaTrainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_dataset,
-            test_dataset=test_dataset,
-            # criterion=nn.CrossEntropyLoss(),
+
             compute_metrics=compute_metrics,
-            callbacks=[SystemMetricsCallback(log_dir=training_args.logging_dir, model=model, tokenizer=tokenizer)]
+            seed=Config_Args.args.seed,
+            report_to="tensorboard", 
+            callbacks=[SystemMetricsCallback(log_dir=logging_dir_string, model=model, tokenizer=tokenizer)],
+
     )
 
 

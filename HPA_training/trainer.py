@@ -10,6 +10,10 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from torch.optim.lr_scheduler import LambdaLR
 from hpa import HpaModule
+import numpy as np
+import random
+from torch.utils.tensorboard import SummaryWriter
+from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl
 
 class HpaTrainer():
     def __init__(
@@ -33,8 +37,25 @@ class HpaTrainer():
         logging_steps: int = 10,
         device: torch.device = None, # Crucial: Device to run training on (CPU/GPU)
         lr_scheduler: optim.lr_scheduler = None, # Crucial: Learning rate scheduler (can be built internally)
-        max_grad_norm: float = 1.0 # Crucial: For gradient clipping
+        max_grad_norm: float = 1.0, # Crucial: For gradient clipping
+        compute_metrics: Callable[[Tuple[np.ndarray, np.ndarray]], Dict[str, float]] = None,
+        seed: int = 1,
+        report_to: str = "none",
+        callbacks: List[TrainerCallback] = None
     ):
+        
+        # Set random seeds for reproducibility
+        self.seed = seed
+        torch.manual_seed(self.seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(self.seed)
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+        np.random.seed(self.seed)
+        random.seed(self.seed)
+        logger.info(f"Using seed: {self.seed} for reproducibility")
+
+
         # --- Model and Core Components ---
         self.model = model
         self.hpa_modules = [*filter(lambda x: isinstance(x, HpaModule), model.modules())]
@@ -42,6 +63,7 @@ class HpaTrainer():
         self.eval_dataloader = DataLoader(eval_dataset, batch_size=eval_batch_size, shuffle=False)
         self.optimizer = optimizer
         self.criterion = criterion
+        self.compute_metrics = compute_metrics
 
         # --- Device Management ---
         if device is None:
@@ -93,6 +115,28 @@ class HpaTrainer():
         logger.info(f"Trainer initialized. Device: {self.device}")
         logger.info(f"Total training steps: {self.num_training_steps}")
 
+        # --- TensorBoard Setup ---
+        self.report_to = report_to
+        self.tb_writer = None
+        if self.report_to == "tensorboard":
+            self.tb_writer = SummaryWriter(log_dir=os.path.join(self.logging_dir, "tensorboard"))
+            logger.info(f"TensorBoard logging enabled at {os.path.join(self.logging_dir, 'tensorboard')}")
+
+        self.callbacks = callbacks if callbacks is not None else []
+        for callback in self.callbacks:
+            callback.trainer = self
+            logger.info(f"Initialized callback: {callback.__class__.__name__}")
+
+        # Initialize TrainingArguments, TrainerState, and TrainerControl
+        self.args = TrainingArguments(
+            output_dir=self.output_dir,
+            logging_dir=self.logging_dir,
+            logging_steps=self.logging_steps,
+            num_train_epochs=self.num_train_epochs,
+        )
+        self.state = TrainerState(global_step=0)
+        self.control = TrainerControl()
+
     def _create_default_lr_scheduler(self):
         """Creates a simple linear warmup then linear decay scheduler."""
         def lr_lambda(current_step: int):
@@ -110,6 +154,8 @@ class HpaTrainer():
         steps_since_last_log = 0
 
         for step, batch in enumerate(self.train_dataloader):
+            for callback in self.callbacks:
+                callback.on_step_begin(args=self.args, state=self.state, control=self.control)
 
             # Move batch to device
             batch = {k: v.to(self.device) for k, v in batch.items()}
@@ -158,9 +204,12 @@ class HpaTrainer():
                 self.optimizer.zero_grad() # Clear gradients
 
             total_loss += loss.item() * self.gradient_accumulation_steps # Scale back loss for logging
-
             self.global_step += 1
+            self.state.global_step = self.global_step
             steps_since_last_log += 1
+
+            for callback in self.callbacks:
+                callback.on_step_end(args=self.args, state=self.state, control=self.control, batch=batch)
 
             # --- Logging ---
             if self.global_step % self.logging_steps == 0:
@@ -170,15 +219,26 @@ class HpaTrainer():
                       f"Loss: {avg_loss:.4f} | "
                       f"LR: {current_lr:.6f} | "
                       f"Time: {datetime.now().strftime('%H:%M:%S')}")
+                
+                # Log training metrics to TensorBoard
+                if self.tb_writer is not None:
+                    self.tb_writer.add_scalar('train/loss', avg_loss, self.global_step)
+                    self.tb_writer.add_scalar('train/learning_rate', current_lr, self.global_step)
 
                 total_loss = 0 # Reset for next logging interval
                 steps_since_last_log = 0
 
-    def _evaluate(self, epoch=0):
+    def _evaluate(self, epoch=0, is_final=False):
+        if is_final:
+            logger.info("\nPerforming final evaluation...")
+        else:
+            logger.info(f"\nEvaluating after epoch {epoch + 1}...")
         self.model.eval() # Set model to evaluation mode
         eval_loss = 0
         correct_predictions = 0
         total_samples = 0
+        all_preds = []
+        all_labels = []
 
         logger.info(f"\nEvaluating after epoch {epoch + 1}...")
         with torch.no_grad(): # Disable gradient computation during evaluation
@@ -193,6 +253,9 @@ class HpaTrainer():
                 loss = self.criterion(outputs.logits, labels) # Extract logits
                 eval_loss += loss.item()
 
+                all_preds.append(outputs.logits.detach().cpu().numpy())
+                all_labels.append(labels.detach().cpu().numpy())
+
                 # Example metric: Accuracy for classification
                 if outputs.logits.ndim > 1 and outputs.logits.shape[1] > 1: # Assuming classification
                     predictions = torch.argmax(outputs.logits, dim=-1)
@@ -205,13 +268,35 @@ class HpaTrainer():
         avg_eval_loss = eval_loss / len(self.eval_dataloader)
         accuracy = correct_predictions / total_samples if total_samples > 0 else 0
 
+        results = {'eval_loss': avg_eval_loss, "accuracy": accuracy}
+
+        all_preds = np.concatenate(all_preds, axis=0)
+        all_labels = np.concatenate(all_labels, axis=0)
+
+        if self.compute_metrics is not None:
+            eval_pred = (all_preds, all_labels)
+            metrics = self.compute_metrics(eval_pred)
+            results.update(metrics)
+
+
         logger.info(f"Evaluation Results (Epoch {epoch + 1}):")
-        logger.info(f"  Avg Eval Loss: {avg_eval_loss:.4f}")
-        if total_samples > 0:
-            logger.info(f"  Accuracy: {accuracy:.4f}")
+        for key, value in results.items():
+            logger.info(f"  {key}: {value:.4f}")
+            # Log evaluation metrics to TensorBoard
+            if self.tb_writer is not None:
+                self.tb_writer.add_scalar(f'eval/{key}', value, epoch)
+        # logger.info(f"  Avg Eval Loss: {avg_eval_loss:.4f}")
+        # if total_samples > 0:
+        #     logger.info(f"  Accuracy: {accuracy:.4f}")
+
+        for callback in self.callbacks:
+            callback.on_evaluate(args=self.args, state=self.state, control=self.control, metrics=results)
 
         self.model.train() # Set model back to training mode
-        return avg_eval_loss, accuracy
+        return results
+    
+    def evaluate(self):
+        return self._evaluate(epoch=self.num_train_epochs, is_final=True)
 
     def _save_checkpoint(self, epoch):
         checkpoint_path = os.path.join(self.output_dir, f"checkpoint_epoch_{epoch+1}.pt")
@@ -229,18 +314,33 @@ class HpaTrainer():
         logger.info("Starting training...")
         start_time = time.time()
 
+        for callback in self.callbacks:
+            callback.on_train_begin(args=self.args, state=self.state, control=self.control)
+
         for epoch in range(self.num_train_epochs):
             logger.info(f"\n--- Epoch {epoch + 1}/{self.num_train_epochs} ---")
             self._train_epoch()
 
             # Evaluate after each epoch
-            self._evaluate(epoch)
+            # self._evaluate(epoch)
+            metrics = self._evaluate(epoch)
+            for callback in self.callbacks:
+                callback.on_evaluate(args=self.args, state=self.state, control=self.control, metrics=metrics)
+            for callback in self.callbacks:
+                callback.on_epoch_end(args=self.args, state=self.state, control=self.control)
 
             # Save checkpoint after each epoch
             # self._save_checkpoint(epoch)
 
         end_time = time.time()
         logger.info(f"\nTraining complete! Total time: {end_time - start_time:.2f} seconds")
+
+        for callback in self.callbacks:
+            callback.on_train_end()
+
+        # Close TensorBoard writer to flush logs
+        if self.tb_writer is not None:
+            self.tb_writer.close()
   
 
 
