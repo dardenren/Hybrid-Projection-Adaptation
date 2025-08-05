@@ -1,7 +1,7 @@
 import time
 import torch
 import psutil
-import pynvml
+import pynvml # type: ignore
 from config import logger
 from transformers import TrainerCallback, TrainerState, TrainerControl, TrainingArguments
 from torch.utils.tensorboard import SummaryWriter
@@ -139,7 +139,7 @@ class SystemMetricsCallback(TrainerCallback):
         if hasattr(self, 'trainer') and self.trainer is not None:
             try:
                 metrics = self.trainer.evaluate()
-                self.logger.info("Final evaluation metrics:")
+                logger.info("Final evaluation metrics:")
                 if metrics:
                     if "eval_loss" in metrics:
                         self.writer.add_scalar('Final/Evaluation_Loss', metrics["eval_loss"], state.global_step)
@@ -160,7 +160,7 @@ class SystemMetricsCallback(TrainerCallback):
                         logger.info("No classification metrics available in final evaluation")
             except Exception as e:
                 print(f"Final evaluation failed: {e}")
-                self.logger.info(f"Final evaluation failed: {e}")
+                logger.info(f"Final evaluation failed: {e}")
         
         # Cleanup
         try:
