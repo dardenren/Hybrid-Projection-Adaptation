@@ -49,6 +49,36 @@ def load_model(model_name, r, lora_alpha, merge_weights=True, linear=True, embed
     logger.info("Model initialized and adapted to LoRA")
     return model
 
+def merge_lora_weights(model):
+    """
+    Manually merge LoRA weights into the base model's weights for all LoRA layers.
+    
+    Args:
+        model: The PyTorch model containing LoRA layers.
+    """
+    for module in model.modules():
+        if isinstance(module, LoRALayer) and module.merge_weights and not module.merged:
+            if module.r > 0:  # Ensure LoRA is active
+                if isinstance(module, LoRALinear):
+                    # Handle fan_in_fan_out transposition
+                    def T(w):
+                        return w.transpose(0, 1) if module.fan_in_fan_out else w
+                    update = T(module.lora_B @ module.lora_A) * module.scaling
+                    module.weight.data += update
+                    logger.info(f"M")
+                elif isinstance(module, LoRAEmbedding):
+                    update = (module.lora_B @ module.lora_A).transpose(0, 1) * module.scaling
+                    module.weight.data += update
+                elif isinstance(module, ConvLoRA):
+                    update = (module.lora_B @ module.lora_A).view(module.conv.weight.shape) * module.scaling
+                    module.conv.weight.data += update
+                elif isinstance(module, LoRAMergedLinear):
+                    def T(w):
+                        return w.transpose(0, 1) if module.fan_in_fan_out else w
+                    update = module.merge_AB() * module.scaling
+                    module.weight.data += update
+                module.merged = True  # Mark as merged to prevent re-merging
+
 
 
 
