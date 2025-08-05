@@ -4,6 +4,7 @@ import torch.optim as optim
 from transformers import Trainer, TrainingArguments
 from config import Config_Args, OPTIM, OPTIM_TARGET_MODULES, DEVICE
 from metrics import SystemMetricsCallback
+from galore_torch import GaLoreAdamW
 
 def compute_metrics(eval_pred):
     predictions, labels = eval_pred
@@ -18,6 +19,14 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
     output_dir_string = "./output" + f"_{Config_Args.args.task_name}"
     logging_dir_string = "./logs" + f"_{Config_Args.args.task_name}"
 
+    galore_params = [p for n, p in model.named_parameters() if len(p.shape) == 2 and ("dense" in n or "query" in n or "key" in n or "value" in n)]
+    non_galore_params = [p for n, p in model.named_parameters() if not ("dense" in n or "query" in n or "key" in n or "value" in n)]
+    param_groups = [
+        {'params': non_galore_params},
+        {'params': galore_params, 'rank': Config_Args.args.rank, 'update_proj_gap': Config_Args.args.proj_freq, 'scale': Config_Args.args.scale, 'proj_type': Config_Args.args.proj_type}
+        ]
+    optimizer = GaLoreAdamW(param_groups, lr=Config_Args.args.lr)
+
     training_args = TrainingArguments(
         # output_dir="./output",
         output_dir=output_dir_string,
@@ -27,9 +36,10 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
         warmup_ratio = 0.1,
         lr_scheduler_type="linear",
         seed=Config_Args.args.seed,
-        optim=OPTIM,
-        optim_args = f"rank={Config_Args.args.rank}, update_proj_gap={Config_Args.args.proj_freq}, scale={Config_Args.args.scale}, proj_type={Config_Args.args.proj_type}",  # Pass GaLore hyperparameters
-        optim_target_modules=OPTIM_TARGET_MODULES,
+        # optim=OPTIM,
+        # optim_args = f"rank={Config_Args.args.rank}, update_proj_gap={Config_Args.args.proj_freq}, scale={Config_Args.args.scale}, proj_type={Config_Args.args.proj_type}",  # Pass GaLore hyperparameters
+        # optim_target_modules=OPTIM_TARGET_MODULES,
+
         # GaLore-specific parameters
         # These are passed to the optimizer via TrainingArguments
         # rank, update_proj_gap, scale, proj_type are handled internally by galore-torch
@@ -50,6 +60,7 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
         train_dataset=train_dataset,
         eval_dataset=test_dataset,
         compute_metrics=compute_metrics,
+        optimizers=(optimizer, None),
         callbacks=[SystemMetricsCallback(log_dir=training_args.logging_dir, model=model, tokenizer=tokenizer)]
     )
 
