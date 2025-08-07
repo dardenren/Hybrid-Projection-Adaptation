@@ -1,18 +1,26 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
 from transformers import Trainer, TrainingArguments
 from config import Config_Args, DEVICE
 from metrics import SystemMetricsCallback
+from sklearn.metrics import matthews_corrcoef
 
 def compute_metrics(eval_pred):
-    predictions, labels = eval_pred
-    # Convert NumPy arrays to PyTorch Tensors
-    predictions = torch.tensor(predictions, device=DEVICE)
-    labels = torch.tensor(labels, device=DEVICE)
-    # Compute loss
-    loss = nn.CrossEntropyLoss()(predictions, labels)
-    return {"eval_loss": loss.item()}
+    predictions_np, labels_np = eval_pred
+    predicted_labels_np = np.argmax(predictions_np, axis=1)
+    mcc = matthews_corrcoef(labels_np, predicted_labels_np)
+    
+    # Compute loss if needed
+    predictions_tensor = torch.tensor(predictions_np, device=DEVICE)
+    labels_tensor = torch.tensor(labels_np, device=DEVICE)
+    loss = nn.CrossEntropyLoss()(predictions_tensor, labels_tensor)
+    
+    return {
+        "cross_entropy_loss": loss.item(),
+        "mcc": mcc
+    }
 
 def setup_trainer(model, tokenizer, train_dataset, test_dataset):
     optimizer = optim.AdamW(
