@@ -24,8 +24,9 @@ args = None
 OPTIM_TARGET_MODULES = ["attention", "pooler", "intermediate"] 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-logger = logging.getLogger("MobileBERT_Training")
+logger = logging.getLogger("GLUE_Training")
 if not logger.handlers:  # Avoid reconfiguring if already set
+    log_path = "logger_training.log"
     logger.setLevel(logging.INFO)
     handler = RotatingFileHandler("output/training.log", maxBytes=1024*1024, backupCount=5)
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
