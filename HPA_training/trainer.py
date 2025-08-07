@@ -1,4 +1,5 @@
 import torch
+import math
 from config import *
 import os
 import time
@@ -136,6 +137,22 @@ class HpaTrainer():
         )
         self.state = TrainerState(global_step=0)
         self.control = TrainerControl()
+    #     self.initialize_adapters()
+
+    # def initialize_adapters(self):
+    #     """Initialize adapters for all HPA modules to freeze weights from the start."""
+    #     for module in self.hpa_modules:
+    #         module.reactivate_on_input(module.weight.data)
+    #         logger.info(f"Initialized adapters for module {module}: "
+    #                    f"hpa_enabled={module.hpa_enabled}, "
+    #                    f"weight.requires_grad={module.weight.requires_grad}")
+    #     self.log_trainable_params("After Initial Adapter Activation")
+
+
+    # def log_trainable_params(self, stage: str):
+    #     """Log the number of trainable parameters at a given stage."""
+    #     trainable_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+    #     logger.info(f"[{stage}] Trainable parameters: {trainable_params}")
 
     def _create_default_lr_scheduler(self):
         """Creates a simple linear warmup then linear decay scheduler."""
@@ -162,7 +179,7 @@ class HpaTrainer():
             inputs = batch.get('input_ids') if 'input_ids' in batch else batch[0]
             labels = batch.get('labels') if 'labels' in batch else batch[1]
 
-            if self.global_step % self.refresh_adapter_steps == 0:
+            if (self.global_step % self.refresh_adapter_steps == 0) and (self.num_training_steps - self.global_step) >= self.refresh_adapter_steps:
                 logger.info(f"--- Refresh adapter at {self.global_step} ---")
                 rank_reduction_condition = (self.global_step >= self.first_rank_reduction_step) and \
                 (self.global_step - self.first_rank_reduction_step) % self.rank_reduction_steps == 0
@@ -172,7 +189,7 @@ class HpaTrainer():
                     module.merge_weights()
 
                 if self.refresh_type != "weight" or rank_reduction_condition:
-                    outputs = self.model(inputs)
+                    outputs = self.model(inputs, attention_mask=batch['attention_mask'])
                     loss = self.criterion(outputs.logits, labels) # Extract logits
                     loss.backward()
 
@@ -186,10 +203,11 @@ class HpaTrainer():
 
                 self.optimizer.project_states()
                 self.optimizer.zero_grad()
-
-            outputs = self.model(inputs)
+                # self.log_trainable_params("After Adapter Activation")
+                
+            outputs = self.model(inputs, attention_mask=batch['attention_mask'])
             loss = self.criterion(outputs.logits, labels) # Extract logits
-            logger.info(f"Step {self.global_step} loss: {loss}")
+            # logger.info(f"Step {self.global_step} loss: {loss}")
             loss = loss / self.gradient_accumulation_steps
             loss.backward()
 
@@ -202,6 +220,7 @@ class HpaTrainer():
                 self.optimizer.step()
                 self.lr_scheduler.step() # Update learning rate
                 self.optimizer.zero_grad() # Clear gradients
+                # self.log_trainable_params(f"Step {self.global_step}")
 
             total_loss += loss.item() * self.gradient_accumulation_steps # Scale back loss for logging
             self.global_step += 1
@@ -228,11 +247,8 @@ class HpaTrainer():
                 total_loss = 0 # Reset for next logging interval
                 steps_since_last_log = 0
 
-    def _evaluate(self, epoch=0, is_final=False):
-        if is_final:
-            logger.info("\nPerforming final evaluation...")
-        else:
-            logger.info(f"\nEvaluating after epoch {epoch + 1}...")
+    def _evaluate(self, epoch=0):
+        logger.info(f"\nEvaluating after epoch {epoch + 1}...")
         self.model.eval() # Set model to evaluation mode
         eval_loss = 0
         correct_predictions = 0
@@ -248,7 +264,7 @@ class HpaTrainer():
                 inputs = batch.get('input_ids') if 'input_ids' in batch else batch[0]
                 labels = batch.get('labels') if 'labels' in batch else batch[1]
 
-                outputs = self.model(inputs)
+                outputs = self.model(inputs, attention_mask=batch['attention_mask'])
 
                 loss = self.criterion(outputs.logits, labels) # Extract logits
                 eval_loss += loss.item()
@@ -295,8 +311,68 @@ class HpaTrainer():
         self.model.train() # Set model back to training mode
         return results
     
-    def evaluate(self):
-        return self._evaluate(epoch=self.num_train_epochs, is_final=True)
+    # def evaluate(self):
+    #     # if self.global_step % self.logging_steps != 0:
+    #     #     self.optimizer.merge_states()
+    #     self.model.eval() # Set model to evaluation mode
+    #     eval_loss = 0
+    #     correct_predictions = 0
+    #     total_samples = 0
+    #     all_preds = []
+    #     all_labels = []
+
+    #     with torch.no_grad(): # Disable gradient computation during evaluation
+    #         for step, batch in enumerate(self.eval_dataloader):
+    #             batch = {k: v.to(self.device) for k, v in batch.items()}
+
+    #             inputs = batch.get('input_ids') if 'input_ids' in batch else batch[0]
+    #             labels = batch.get('labels') if 'labels' in batch else batch[1]
+
+    #             outputs = self.model(inputs, attention_mask=batch['attention_mask'])
+
+    #             loss = self.criterion(outputs.logits, labels) # Extract logits
+    #             eval_loss += loss.item()
+
+    #             all_preds.append(outputs.logits.detach().cpu().numpy())
+    #             all_labels.append(labels.detach().cpu().numpy())
+
+    #             # Example metric: Accuracy for classification
+    #             if outputs.logits.ndim > 1 and outputs.logits.shape[1] > 1: # Assuming classification
+    #                 predictions = torch.argmax(outputs.logits, dim=-1)
+    #                 correct_predictions += (predictions == labels).sum().item()
+    #             else: # Assuming regression or binary classification, adjust as needed
+    #                 pass # No generic accuracy calculation without knowing task
+
+    #             total_samples += labels.numel() # Count total labels for accuracy denominator
+
+    #     avg_eval_loss = eval_loss / len(self.eval_dataloader)
+    #     accuracy = correct_predictions / total_samples if total_samples > 0 else 0
+
+    #     results = {'eval_loss': avg_eval_loss, "accuracy": accuracy}
+
+    #     all_preds = np.concatenate(all_preds, axis=0)
+    #     all_labels = np.concatenate(all_labels, axis=0)
+
+    #     if self.compute_metrics is not None:
+    #         eval_pred = (all_preds, all_labels)
+    #         metrics = self.compute_metrics(eval_pred)
+    #         results.update(metrics)
+
+
+    #     for key, value in results.items():
+    #         logger.info(f"  {key}: {value:.4f}")
+    #         # Log evaluation metrics to TensorBoard
+    #         if self.tb_writer is not None:
+    #             self.tb_writer.add_scalar(f'eval/{key}', value, self.num_train_epochs)
+    #     # logger.info(f"  Avg Eval Loss: {avg_eval_loss:.4f}")
+    #     # if total_samples > 0:
+    #     #     logger.info(f"  Accuracy: {accuracy:.4f}")
+
+    #     for callback in self.callbacks:
+    #         callback.on_evaluate(args=self.args, state=self.state, control=self.control, metrics=results)
+
+    #     self.model.train() 
+    #     return results
 
     def _save_checkpoint(self, epoch):
         checkpoint_path = os.path.join(self.output_dir, f"checkpoint_epoch_{epoch+1}.pt")
@@ -314,6 +390,7 @@ class HpaTrainer():
         logger.info("Starting training...")
         start_time = time.time()
 
+        # self.log_trainable_params("Before Training")
         for callback in self.callbacks:
             callback.on_train_begin(args=self.args, state=self.state, control=self.control)
 
@@ -336,7 +413,7 @@ class HpaTrainer():
         logger.info(f"\nTraining complete! Total time: {end_time - start_time:.2f} seconds")
 
         for callback in self.callbacks:
-            callback.on_train_end()
+            callback.on_train_end(args=self.args, state=self.state, control=self.control)
 
         # Close TensorBoard writer to flush logs
         if self.tb_writer is not None:
