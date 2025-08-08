@@ -30,9 +30,7 @@ def main(args):
         # mark_only_lora_as_trainable(model)
 
         model.to(DEVICE)
-
-    
-        # Load and preprocess dataset
+        
         task_name_string = "None" if args.task_name == None else args.task_name
         logger.info(f"Retrieving dataset: {args.dataset_name}, Task: {task_name_string}")
         if args.task_name == "mnli":
@@ -41,7 +39,6 @@ def main(args):
         else:
             train_dataset, test_dataset, tokenizer = load_and_preprocess_data(args)
         
-        # Setting up trainer
         logger.info("Setting up trainer")
         trainer = setup_trainer(model, tokenizer, train_dataset=train_dataset, test_dataset=test_dataset)
 
