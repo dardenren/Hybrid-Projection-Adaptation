@@ -25,7 +25,6 @@ def main(args):
         model = AutoModelForSequenceClassification.from_pretrained(args.model_name, 
                                                                    num_labels=NUM_LABELS)
     
-        # Load and preprocess dataset
         task_name_string = "None" if args.task_name == None else args.task_name
         logger.info(f"Retrieving dataset: {args.dataset_name}, Task: {task_name_string}")
         if args.task_name == "mnli":
@@ -34,7 +33,6 @@ def main(args):
         else:
             train_dataset, test_dataset, tokenizer = load_and_preprocess_data(args)
         
-        # Add HPA adapters
         logger.info("Adding HPA to target modules")
         if args.proj_direction == None:
             replace_with_hpa(model, OPTIM_TARGET_MODULES, set_rank_fn=lambda m,n: args.rank, mode="svd", hpa_dropout=args.hpa_dropout, hpa_alpha=args.scale)
@@ -43,7 +41,6 @@ def main(args):
 
         model.to(DEVICE)
 
-        # Setting up trainer
         logger.info("Setting up trainer")
         trainer = setup_trainer(model, tokenizer, train_dataset, test_dataset)
         
