@@ -138,10 +138,10 @@ module load python/3.10.12
 module load cuda/11.2
 
 # Install dependencies if not already installed
-# pip install --no-cache-dir -r requirements.txt
+pip install --no-cache-dir -r requirements.txt
 
-# pip install --no-cache-dir tf-keras scikit-learn
-# pip uninstall -y tensorflow
+pip install --no-cache-dir tf-keras scikit-learn
+pip uninstall -y tensorflow
 
 # Activate virtual environment
 source ./venv/bin/activate
