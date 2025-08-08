@@ -19,7 +19,6 @@ def main(args):
         model = AutoModelForSequenceClassification.from_pretrained(args.model_name, 
                                                                    num_labels=NUM_LABELS)
     
-        # Load and preprocess dataset
         task_name_string = "None" if args.task_name == None else args.task_name
         logger.info(f"Retrieving dataset: {args.dataset_name}, Task: {task_name_string}")
         if args.task_name == "mnli":
@@ -27,8 +26,7 @@ def main(args):
             train_dataset, test_dataset, validation_mismatched_dataset, tokenizer = load_and_preprocess_data(args)
         else:
             train_dataset, test_dataset, tokenizer = load_and_preprocess_data(args)
-        
-        # Setting up trainer
+    
         logger.info("Setting up trainer")
         trainer = setup_trainer(model, tokenizer, train_dataset, test_dataset)
         
