@@ -1,4 +1,3 @@
-# Data loading & preprocessing
 import argparse
 import torch
 from datasets import load_dataset, DatasetDict
@@ -55,7 +54,6 @@ def load_and_preprocess_data(args: argparse.ArgumentParser):
 
         return preprocessed
     
-    # Tokenize dataset
     logger.info(f"Loading and preprocessing {args.dataset_name} dataset")
     if not (args.task_name == None):
         if args.task_name == "mnli":
@@ -72,11 +70,10 @@ def load_and_preprocess_data(args: argparse.ArgumentParser):
 
     encoded_dataset = dataset.map(preprocess_fn, batched=True)
     
-    # Format for PyTorch and rename label column
+    # Format for PyTorch and bert models
     encoded_dataset.set_format("torch", columns=["input_ids", "attention_mask", "label"])
     encoded_dataset = encoded_dataset.rename_column("label", "labels")
     
-    # Get train and validation splits
     train_dataset = encoded_dataset["train"]
     # train_dataset = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
