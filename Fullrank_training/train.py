@@ -12,7 +12,6 @@ def compute_metrics(eval_pred):
     predicted_labels_np = np.argmax(predictions_np, axis=1)
     mcc = matthews_corrcoef(labels_np, predicted_labels_np)
     
-    # Compute loss if needed
     predictions_tensor = torch.tensor(predictions_np, device=DEVICE)
     labels_tensor = torch.tensor(labels_np, device=DEVICE)
     loss = nn.CrossEntropyLoss()(predictions_tensor, labels_tensor)
