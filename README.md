@@ -1,1 +1,1 @@
-## Hypbrid-Projection-Adaptation
+## Hybrid-Projection-Adaptation
