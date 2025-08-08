@@ -13,7 +13,6 @@ def compute_metrics(eval_pred):
     predicted_labels_np = np.argmax(predictions_np, axis=1)
     mcc = matthews_corrcoef(labels_np, predicted_labels_np)
     
-    # Compute loss if needed
     predictions_tensor = torch.tensor(predictions_np, device=DEVICE)
     labels_tensor = torch.tensor(labels_np, device=DEVICE)
     loss = nn.CrossEntropyLoss()(predictions_tensor, labels_tensor)
@@ -48,16 +47,12 @@ def setup_trainer(model, tokenizer, train_dataset, test_dataset):
         # optim_args = f"rank={Config_Args.args.rank}, update_proj_gap={Config_Args.args.proj_freq}, scale={Config_Args.args.scale}, proj_type={Config_Args.args.proj_type}",  # Pass GaLore hyperparameters
         # optim_target_modules=OPTIM_TARGET_MODULES,
 
-        # GaLore-specific parameters
-        # These are passed to the optimizer via TrainingArguments
-        # rank, update_proj_gap, scale, proj_type are handled internally by galore-torch
-
         # logging_dir="./logs",
         logging_dir=logging_dir_string,
         report_to="tensorboard",
-        logging_steps=100,  # Log every 100 steps
+        logging_steps=100,  
         logging_strategy="steps",
-        save_strategy="no", # Set to "epoch" to save model after every epoch
+        save_strategy="no",
         eval_strategy="epoch",
     )
 
